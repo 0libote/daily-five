@@ -10,6 +10,7 @@ import { keyboardStates, newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult, winPercentage } from "./stats";
 import type { GameState, PluginData, Puzzle, Settings, Stats } from "./types";
+import { isValidGuess } from "./words";
 
 const VIEW_TYPE = "daily-five-view";
 const DEFAULT_SETTINGS: Settings = {
@@ -62,7 +63,7 @@ export default class DailyFivePlugin extends Plugin {
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
     this.app.workspace.setActiveLeaf(leaf, { focus: true });
-    if (this.data.settings.dailyNotesEnabled) await this.updateDailyNote(false);
+    if (this.data.settings.dailyNotesEnabled) await this.updateDailyNote(false, true);
   }
 
   async save() {
@@ -89,7 +90,7 @@ export default class DailyFivePlugin extends Plugin {
     new Notice("Today's puzzle was reset.");
   }
 
-  async updateDailyNote(offerCreate = true) {
+  async updateDailyNote(offerCreate = true, autoCreate = false) {
     if (!this.data.settings.dailyNotesEnabled) return void new Notice("Daily Note integration is disabled.");
     let puzzle: Puzzle;
     try {
@@ -101,7 +102,7 @@ export default class DailyFivePlugin extends Plugin {
     const game = this.data.game ?? newGame(puzzle.date);
     const target = this.dailyNotePath();
     let file = this.app.vault.getAbstractFileByPath(target);
-    if (!file && offerCreate && await confirm(this.app, "Create Daily Note?", `Create ${target}?`)) {
+    if (!file && (autoCreate || offerCreate && await confirm(this.app, "Create Daily Note?", `Create ${target}?`))) {
       if (this.dailyNoteSettings()) {
         const today = (moment as unknown as () => Parameters<typeof createDailyNote>[0])();
         file = await createDailyNote(today) ?? null;
@@ -151,6 +152,7 @@ export default class DailyFivePlugin extends Plugin {
 }
 
 class DailyFiveView extends ItemView {
+  private animateDraftIndex?: number;
   constructor(leaf: WorkspaceLeaf, private plugin: DailyFivePlugin) { super(leaf); }
   getViewType() { return VIEW_TYPE; }
   getDisplayText() { return "Daily Five"; }
@@ -182,7 +184,6 @@ class DailyFiveView extends ItemView {
       if (game.status === "playing") message.setText(game.guesses.length ? `${6 - game.guesses.length} guesses left` : "Enter a five-letter word");
       else message.setText(game.status === "won" ? `Solved in ${game.guesses.length}/6 — ${puzzle.answer}` : `The word was ${puzzle.answer}`);
       if (game.status === "playing") this.drawKeyboard(root);
-      else root.createEl("button", { text: "Add result to Daily Note", cls: "mod-cta" }).onclick = () => void this.plugin.updateDailyNote();
     } catch (error) {
       root.createDiv({ cls: "daily-five__error", text: error instanceof Error ? error.message : "Today's puzzle is unavailable." });
       root.createEl("button", { text: "Try again" }).onclick = () => void this.render();
@@ -196,14 +197,19 @@ class DailyFiveView extends ItemView {
       const draft = row === game.guesses.length ? game.draft : "";
       for (let column = 0; column < 5; column++) {
         const tile = board.createDiv({ cls: "daily-five__tile", text: guess?.word[column] ?? draft[column] ?? "" });
+        if (row === game.guesses.length && game.status === "playing") tile.addClass("is-current");
         const state = guess?.score[column];
         if (state) {
           tile.addClass(`is-${state}`);
           if (row === game.guesses.length - 1) tile.addClass("is-revealing");
         }
-        else if (draft[column]) tile.addClass("is-filled");
+        else if (draft[column]) {
+          tile.addClass("is-filled");
+          if (column === this.animateDraftIndex) tile.addClass("is-typing");
+        }
       }
     }
+    this.animateDraftIndex = undefined;
   }
 
   drawKeyboard(root: HTMLElement) {
@@ -229,13 +235,24 @@ class DailyFiveView extends ItemView {
     const game = this.plugin.data.game;
     const answer = this.plugin.puzzle?.answer;
     if (!game || !answer || game.status !== "playing") return;
-    if (key === "Backspace") game.draft = game.draft.slice(0, -1);
+    if (key === "Backspace") {
+      game.draft = game.draft.slice(0, -1);
+      this.animateDraftIndex = undefined;
+    }
     else if (key === "Enter") {
       if (game.draft.length !== 5) return void new Notice("Enter five letters.");
+      if (!isValidGuess(game.draft, answer)) {
+        this.contentEl.addClass("is-rejected");
+        this.containerEl.ownerDocument.defaultView?.setTimeout(() => this.contentEl.removeClass("is-rejected"), 360);
+        return void new Notice("Not in the word list.");
+      }
       const next = submitGuess(game, answer, game.draft);
       void this.plugin.finish(next).then(() => this.render());
       return;
-    } else if (/^[a-z]$/i.test(key) && game.draft.length < 5) game.draft += key.toUpperCase();
+    } else if (/^[a-z]$/i.test(key) && game.draft.length < 5) {
+      game.draft += key.toUpperCase();
+      this.animateDraftIndex = game.draft.length - 1;
+    }
     void this.plugin.save().then(() => this.render());
   }
 }

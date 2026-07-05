@@ -6,6 +6,7 @@ import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
 import type { Puzzle } from "./types";
+import { isValidGuess } from "./words";
 
 const puzzle: Puzzle = {
   date: "2026-07-05", game: 1842, dayName: "Sunday", answer: "SWAMI",
@@ -94,4 +95,10 @@ it("does not call upstream when cache has today's puzzle", async () => {
 it("handles local and consecutive dates", () => {
   expect(localDate(new Date(2026, 6, 5, 23, 59))).toBe("2026-07-05");
   expect(daysBetween("2026-02-28", "2026-03-01")).toBe(1);
+});
+
+it("accepts dictionary words and rejects non-words", () => {
+  expect(isValidGuess("CRANE", puzzle.answer)).toBe(true);
+  expect(isValidGuess("SWAMI", puzzle.answer)).toBe(true);
+  expect(isValidGuess("ZZZZZ", puzzle.answer)).toBe(false);
 });
