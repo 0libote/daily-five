@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
-import { dailyFiveLineTypes } from "./editor";
 import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
@@ -57,11 +56,6 @@ it("replaces only the marked Daily Note block", () => {
 it("inserts the Daily Note block at the template placeholder", () => {
   expect(replaceResultBlock("# Morning\n\n{{daily-five}}\n\n## Notes", "BLOCK"))
     .toBe("# Morning\n\nBLOCK\n\n## Notes");
-});
-
-it("decorates only the Daily Five block in edit mode", () => {
-  expect(dailyFiveLineTypes(["before", "<!-- daily-five:start -->", "Result: 1/6", "🟩⬛🟨⬛⬛", "<!-- daily-five:end -->", "after"]))
-    .toEqual([undefined, "marker", "line", "score", "marker", undefined]);
 });
 
 it("renders not-started and in-progress Daily Note states", () => {

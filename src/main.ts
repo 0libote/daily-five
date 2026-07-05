@@ -5,7 +5,6 @@ import {
 import { createDailyNote } from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
 import { PLACEHOLDER, replaceResultBlock, resultBlock } from "./daily-note";
-import { dailyFiveEditor } from "./editor";
 import { keyboardStates, newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult, winPercentage } from "./stats";
@@ -34,7 +33,6 @@ export default class DailyFivePlugin extends Plugin {
       game: saved?.game
     };
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
-    this.registerEditorExtension(dailyFiveEditor);
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
