@@ -155,6 +155,7 @@ export default class DailyFivePlugin extends Plugin {
 
 class DailyFiveView extends ItemView {
   private animateDraftIndex?: number;
+  private revealGuessIndex?: number;
   constructor(leaf: WorkspaceLeaf, private plugin: DailyFivePlugin) { super(leaf); }
   getViewType() { return VIEW_TYPE; }
   getDisplayText() { return "Daily Five"; }
@@ -205,7 +206,7 @@ class DailyFiveView extends ItemView {
         const state = guess?.score[column];
         if (state) {
           tile.addClass(`is-${state}`);
-          if (row === game.guesses.length - 1) tile.addClass("is-revealing");
+          if (row === this.revealGuessIndex) tile.addClass("is-revealing");
         }
         else if (draft[column]) {
           tile.addClass("is-filled");
@@ -214,6 +215,7 @@ class DailyFiveView extends ItemView {
       }
     }
     this.animateDraftIndex = undefined;
+    this.revealGuessIndex = undefined;
   }
 
   drawKeyboard(root: HTMLElement) {
@@ -251,6 +253,7 @@ class DailyFiveView extends ItemView {
         return void new Notice("Not in the word list.");
       }
       const next = submitGuess(game, answer, game.draft);
+      this.revealGuessIndex = next.guesses.length - 1;
       void this.plugin.finish(next).then(() => this.render());
       return;
     } else if (/^[a-z]$/i.test(key) && game.draft.length < 5) {
