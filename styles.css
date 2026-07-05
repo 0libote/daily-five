@@ -180,6 +180,22 @@
 }
 .daily-five__stats strong { color: var(--text-normal); font-size: 1.6rem; }
 
+.cm-line.daily-five-editor-marker {
+  color: var(--text-faint);
+  font-size: .72em;
+  line-height: 1.4;
+  opacity: .55;
+}
+.cm-line.daily-five-editor-line {
+  border-inline-start: 2px solid var(--background-modifier-border);
+  padding-inline-start: .75rem;
+}
+.cm-line.daily-five-editor-score {
+  font-size: 1.25em;
+  letter-spacing: .12em;
+  line-height: 1.8;
+}
+
 @keyframes daily-five-reveal {
   0% { transform: rotateX(0); }
   45% { transform: rotateX(90deg); }

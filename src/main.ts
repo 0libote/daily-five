@@ -4,7 +4,8 @@ import {
 } from "obsidian";
 import { createDailyNote } from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
-import { replaceResultBlock, resultBlock } from "./daily-note";
+import { PLACEHOLDER, replaceResultBlock, resultBlock } from "./daily-note";
+import { dailyFiveEditor } from "./editor";
 import { keyboardStates, newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult, winPercentage } from "./stats";
@@ -32,6 +33,7 @@ export default class DailyFivePlugin extends Plugin {
       game: saved?.game
     };
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
+    this.registerEditorExtension(dailyFiveEditor);
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
@@ -268,7 +270,17 @@ class DailyFiveSettings extends PluginSettingTab {
       .setValue(this.plugin.data.settings.dailyNotesEnabled)
       .onChange((value) => this.set("dailyNotesEnabled", value)));
     new Setting(containerEl).setName("Block placement")
-      .setDesc("Add {{daily-five}} to your Daily Note template where the game block should appear. The placeholder is used on first insertion; later updates stay in that position. Without it, the block is appended to the note.");
+      .setDesc("Add {{daily-five}} to your Daily Note template where the game block should appear. The placeholder is used on first insertion; later updates stay in that position. Without it, the block is appended to the note.")
+      .addButton((button) => button.setButtonText("Copy placeholder").onClick(async () => {
+        try {
+          const clipboard = this.containerEl.ownerDocument.defaultView?.navigator.clipboard;
+          if (!clipboard) throw new Error("Clipboard unavailable");
+          await clipboard.writeText(PLACEHOLDER);
+          new Notice("Daily Five placeholder copied.");
+        } catch {
+          new Notice("Could not copy the placeholder.");
+        }
+      }));
     this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");
     this.text("Fallback date format", "Moment format used for the note filename.", "dailyNoteDateFormat");
     new Setting(containerEl).setName("High contrast mode").addToggle((control) => control
