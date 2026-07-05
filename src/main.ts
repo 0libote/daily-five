@@ -261,11 +261,14 @@ class DailyFiveSettings extends PluginSettingTab {
     containerEl.empty();
     this.text("Cache base URL", "Static cache checked before the upstream API.", "cacheBaseUrl");
     this.text("Upstream API base URL", "Used only when today's cache file is unavailable.", "apiBaseUrl");
+    new Setting(containerEl).setName("Daily Notes").setHeading();
     new Setting(containerEl).setName("Daily Note integration")
-      .setDesc("Place {{daily-five}} in your Daily Note template to choose where results appear.")
+      .setDesc("Keep today's game block updated in your Daily Note.")
       .addToggle((control) => control
       .setValue(this.plugin.data.settings.dailyNotesEnabled)
       .onChange((value) => this.set("dailyNotesEnabled", value)));
+    new Setting(containerEl).setName("Block placement")
+      .setDesc("Add {{daily-five}} to your Daily Note template where the game block should appear. The placeholder is used on first insertion; later updates stay in that position. Without it, the block is appended to the note.");
     this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");
     this.text("Fallback date format", "Moment format used for the note filename.", "dailyNoteDateFormat");
     new Setting(containerEl).setName("High contrast mode").addToggle((control) => control
