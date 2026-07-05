@@ -1,5 +1,5 @@
 import esbuild from "esbuild";
-import builtinModules from "builtin-modules";
+import { builtinModules } from "node:module";
 
 const production = process.argv[2] === "production";
 const context = await esbuild.context({
@@ -11,7 +11,7 @@ const context = await esbuild.context({
   logLevel: "info",
   sourcemap: production ? false : "inline",
   treeShaking: true,
-  outfile: "main.js",
+  outfile: "main.js"
 });
 
 if (production) {
@@ -20,4 +20,3 @@ if (production) {
 } else {
   await context.watch();
 }
-

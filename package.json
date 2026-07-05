@@ -1,21 +1,20 @@
 {
   "name": "daily-five",
-  "version": "0.1.0",
-  "description": "A private daily five-letter word game for Obsidian.",
-  "author": "0libote",
-  "license": "MIT",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild src/game.test.ts --bundle --platform=node --format=esm --outfile=dist/game.test.mjs && node --test dist/game.test.mjs"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "builtin-modules": "^5.0.0",
-    "esbuild": "^0.28.0",
-    "obsidian": "^1.13.0",
-    "typescript": "^6.0.0"
+    "@types/node": "^22.10.0",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.24.0",
+    "obsidian": "^1.7.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }

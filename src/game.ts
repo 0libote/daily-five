@@ -1,32 +1,42 @@
-export type LetterResult = "absent" | "present" | "correct";
+import type { GameState, LetterState } from "./types";
 
-export interface GameState {
-  date: string;
-  guesses: string[];
-  completed: boolean;
-  won: boolean;
+export function scoreGuess(guess: string, answer: string): LetterState[] {
+  const letters = answer.toUpperCase().split("");
+  const input = guess.toUpperCase().split("");
+  const score: LetterState[] = Array(5).fill("absent");
+
+  input.forEach((letter, index) => {
+    if (letter === letters[index]) {
+      score[index] = "correct";
+      letters[index] = "";
+      input[index] = "";
+    }
+  });
+  input.forEach((letter, index) => {
+    const match = letters.indexOf(letter);
+    if (letter && match >= 0) {
+      score[index] = "present";
+      letters[match] = "";
+    }
+  });
+  return score;
 }
 
-export function scoreGuess(guess: string, answer: string): LetterResult[] {
-  if (!/^[a-z]{5}$/i.test(guess) || !/^[a-z]{5}$/i.test(answer)) {
-    throw new Error("Guess and answer must be five letters.");
-  }
-
-  const guessed = [...guess.toUpperCase()];
-  const remaining = [...answer.toUpperCase()];
-  const result: LetterResult[] = guessed.map((letter, index) => {
-    if (letter !== remaining[index]) return "absent";
-    remaining[index] = "";
-    return "correct";
-  });
-
-  guessed.forEach((letter, index) => {
-    if (result[index] === "correct") return;
-    const match = remaining.indexOf(letter);
-    if (match === -1) return;
-    result[index] = "present";
-    remaining[match] = "";
-  });
-
-  return result;
+export function newGame(date: string): GameState {
+  return { date, guesses: [], draft: "", status: "playing" };
 }
+
+export function submitGuess(state: GameState, answer: string, word: string): GameState {
+  if (state.status !== "playing" || !/^[A-Z]{5}$/i.test(word)) return state;
+  const score = scoreGuess(word, answer);
+  const guesses = [...state.guesses, { word: word.toUpperCase(), score }];
+  return {
+    ...state,
+    draft: "",
+    guesses,
+    status: score.every((value) => value === "correct") ? "won" : guesses.length === 6 ? "lost" : "playing"
+  };
+}
+
+export const emojiRow = (score: LetterState[]) =>
+  score.map((value) => value === "correct" ? "🟩" : value === "present" ? "🟨" : "⬛").join("");

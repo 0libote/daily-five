@@ -1,11 +1,9 @@
 {
   "id": "daily-five",
   "name": "Daily Five",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "A private daily five-letter word game in your vault.",
+  "description": "A daily five-letter word game with Daily Note results and lifetime stats.",
   "author": "0libote",
-  "authorUrl": "https://github.com/0libote",
   "isDesktopOnly": false
 }
-

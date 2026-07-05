@@ -1,11 +1,8 @@
 node_modules/
 main.js
-dist/
-coverage/
+*.log
+.DS_Store
 .obsidian/
 .env*
-*.log
-*.tmp
-.DS_Store
 test-vault/
-
+coverage/
