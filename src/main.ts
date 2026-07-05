@@ -1,0 +1,283 @@
+import {
+  App, ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile,
+  WorkspaceLeaf, moment, normalizePath, requestUrl
+} from "obsidian";
+import { localDate } from "./date";
+import { replaceResultBlock, resultBlock } from "./daily-note";
+import { newGame, submitGuess } from "./game";
+import { getPuzzle } from "./provider";
+import { emptyStats, recordResult, winPercentage } from "./stats";
+import type { GameState, PluginData, Puzzle, Settings, Stats } from "./types";
+
+const VIEW_TYPE = "daily-five-view";
+const DEFAULT_SETTINGS: Settings = {
+  cacheBaseUrl: "https://raw.githubusercontent.com/0libote/daily-five/main/cache",
+  apiBaseUrl: "https://wordlehints.co.uk/wp-json/wordlehint/v1",
+  dailyNotesEnabled: true,
+  dailyNoteFolder: "",
+  dailyNoteDateFormat: "YYYY-MM-DD",
+  highContrast: false
+};
+
+export default class DailyFivePlugin extends Plugin {
+  data: PluginData = { settings: DEFAULT_SETTINGS, stats: emptyStats() };
+  puzzle?: Puzzle;
+
+  async onload() {
+    const saved = await this.loadData() as Partial<PluginData> | null;
+    this.data = {
+      settings: { ...DEFAULT_SETTINGS, ...saved?.settings },
+      stats: { ...emptyStats(), ...saved?.stats },
+      game: saved?.game
+    };
+    this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
+    this.addRibbonIcon("grid-3x3", "Open today's Daily Five", () => void this.openGame());
+    this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
+    this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
+    this.addCommand({ id: "show-lifetime-stats", name: "Show lifetime stats", callback: () => new StatsModal(this.app, this.data.stats).open() });
+    this.addCommand({ id: "export-stats-markdown", name: "Export stats as markdown", callback: () => void this.exportStats() });
+    this.addCommand({ id: "reset-todays-puzzle", name: "Reset today's puzzle", callback: () => void this.resetToday() });
+    this.addSettingTab(new DailyFiveSettings(this.app, this));
+  }
+
+  async ensurePuzzle() {
+    const today = localDate();
+    if (this.puzzle?.date === today) return this.puzzle;
+    this.puzzle = await getPuzzle(today, this.data.settings.cacheBaseUrl, this.data.settings.apiBaseUrl,
+      async (url) => (await requestUrl({ url })).json);
+    if (this.data.game?.date !== today) this.data.game = newGame(today);
+    await this.save();
+    return this.puzzle;
+  }
+
+  async openGame() {
+    let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
+    if (!leaf) {
+      leaf = this.app.workspace.getLeaf(false);
+      await leaf.setViewState({ type: VIEW_TYPE, active: true });
+    }
+    await this.app.workspace.revealLeaf(leaf);
+  }
+
+  async save() {
+    await this.saveData(this.data);
+  }
+
+  async finish(game: GameState) {
+    if (!this.puzzle) return;
+    this.data.game = game;
+    this.data.stats = recordResult(this.data.stats, game, this.puzzle);
+    await this.save();
+  }
+
+  async resetToday() {
+    const today = localDate();
+    if (this.data.stats.history[today] && !window.confirm("This removes today's result from lifetime stats. Reset it?")) return;
+    const history = { ...this.data.stats.history };
+    delete history[today];
+    this.data.game = newGame(today);
+    this.data.stats = rebuildStats(history);
+    await this.save();
+    this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((leaf) => void (leaf.view as DailyFiveView).render());
+    new Notice("Today's puzzle was reset.");
+  }
+
+  async updateDailyNote() {
+    const today = localDate();
+    const entry = this.data.stats.history[today];
+    if (!this.data.settings.dailyNotesEnabled) return void new Notice("Daily Note integration is disabled.");
+    if (!entry) return void new Notice("Finish today's puzzle first.");
+    const target = this.dailyNotePath();
+    let file = this.app.vault.getAbstractFileByPath(target);
+    if (!file && window.confirm(`Create ${target}?`)) {
+      const folder = target.slice(0, target.lastIndexOf("/"));
+      if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+      file = await this.app.vault.create(target, "");
+    }
+    if (!(file instanceof TFile)) return void new Notice("Daily Note was not found.");
+    await this.app.vault.process(file, (content) => replaceResultBlock(content, resultBlock(entry, this.data.stats)));
+    new Notice("Daily Five result updated.");
+  }
+
+  dailyNotePath() {
+    const internal = this.app as App & {
+      internalPlugins?: { getPluginById(id: string): { enabled: boolean; instance?: { options?: { folder?: string; format?: string } } } | undefined }
+    };
+    const daily = internal.internalPlugins?.getPluginById("daily-notes");
+    const options = daily?.enabled ? daily.instance?.options : undefined;
+    const folder = options?.folder ?? this.data.settings.dailyNoteFolder;
+    const format = options?.format ?? this.data.settings.dailyNoteDateFormat;
+    return normalizePath(`${folder ? `${folder}/` : ""}${moment().format(format)}.md`);
+  }
+
+  async exportStats() {
+    const path = "Daily Five Stats.md";
+    const content = statsMarkdown(this.data.stats);
+    const existing = this.app.vault.getAbstractFileByPath(path);
+    if (existing instanceof TFile) await this.app.vault.modify(existing, content);
+    else await this.app.vault.create(path, content);
+    new Notice(`Exported ${path}.`);
+  }
+}
+
+class DailyFiveView extends ItemView {
+  constructor(leaf: WorkspaceLeaf, private plugin: DailyFivePlugin) { super(leaf); }
+  getViewType() { return VIEW_TYPE; }
+  getDisplayText() { return "Daily Five"; }
+  getIcon() { return "grid-3x3"; }
+  async onOpen() {
+    this.registerDomEvent(document, "keydown", (event) => {
+      if (this.containerEl.isShown()) this.handleKey(event.key);
+    });
+    await this.render();
+  }
+
+  async render() {
+    const root = this.contentEl;
+    root.empty();
+    root.addClass("daily-five");
+    root.toggleClass("daily-five--contrast", this.plugin.data.settings.highContrast);
+    root.createEl("h1", { text: "Daily Five" });
+    try {
+      const puzzle = await this.plugin.ensurePuzzle();
+      const game = this.plugin.data.game ?? newGame(puzzle.date);
+      root.createDiv({ cls: "daily-five__meta", text: `Puzzle ${puzzle.game} · ${puzzle.dayName} · Difficulty ${puzzle.difficulty}/6` });
+      this.drawBoard(root, game);
+      const message = root.createDiv({ cls: "daily-five__message" });
+      if (game.status === "playing") message.setText(game.guesses.length ? `${6 - game.guesses.length} guesses left` : "Enter a five-letter word");
+      else message.setText(game.status === "won" ? `Solved in ${game.guesses.length}/6 — ${puzzle.answer}` : `The word was ${puzzle.answer}`);
+      if (game.status === "playing") this.drawKeyboard(root);
+      else root.createEl("button", { text: "Add result to Daily Note", cls: "mod-cta" }).onclick = () => void this.plugin.updateDailyNote();
+    } catch (error) {
+      root.createDiv({ cls: "daily-five__error", text: error instanceof Error ? error.message : "Today's puzzle is unavailable." });
+      root.createEl("button", { text: "Try again" }).onclick = () => void this.render();
+    }
+  }
+
+  drawBoard(root: HTMLElement, game: GameState) {
+    const board = root.createDiv({ cls: "daily-five__board", attr: { "aria-label": "Guess board" } });
+    for (let row = 0; row < 6; row++) {
+      const guess = game.guesses[row];
+      const draft = row === game.guesses.length ? game.draft : "";
+      for (let column = 0; column < 5; column++) {
+        const tile = board.createDiv({ cls: "daily-five__tile", text: guess?.word[column] ?? draft[column] ?? "" });
+        const state = guess?.score[column];
+        if (state) tile.addClass(`is-${state}`);
+      }
+    }
+  }
+
+  drawKeyboard(root: HTMLElement) {
+    const keyboard = root.createDiv({ cls: "daily-five__keyboard", attr: { "aria-label": "On-screen keyboard" } });
+    ["QWERTYUIOP", "ASDFGHJKL", "↵ZXCVBNM⌫"].forEach((row) => {
+      const line = keyboard.createDiv();
+      [...row].forEach((key) => {
+        const button = line.createEl("button", { text: key, attr: { "aria-label": key === "↵" ? "Enter" : key === "⌫" ? "Backspace" : key } });
+        button.onclick = () => this.handleKey(key === "↵" ? "Enter" : key === "⌫" ? "Backspace" : key);
+      });
+    });
+  }
+
+  handleKey(key: string) {
+    const game = this.plugin.data.game;
+    const answer = this.plugin.puzzle?.answer;
+    if (!game || !answer || game.status !== "playing") return;
+    if (key === "Backspace") game.draft = game.draft.slice(0, -1);
+    else if (key === "Enter") {
+      if (game.draft.length !== 5) return void new Notice("Enter five letters.");
+      const next = submitGuess(game, answer, game.draft);
+      void this.plugin.finish(next).then(() => this.render());
+      return;
+    } else if (/^[a-z]$/i.test(key) && game.draft.length < 5) game.draft += key.toUpperCase();
+    void this.plugin.save().then(() => this.render());
+  }
+}
+
+class StatsModal extends Modal {
+  constructor(app: App, private stats: Stats) { super(app); }
+  onOpen() {
+    this.contentEl.createEl("h2", { text: "Lifetime stats" });
+    const grid = this.contentEl.createDiv({ cls: "daily-five__stats" });
+    [["Played", this.stats.gamesPlayed], ["Win %", winPercentage(this.stats)], ["Current streak", this.stats.currentStreak],
+      ["Best streak", this.stats.bestStreak], ["Failures", this.stats.failures]].forEach(([label, value]) => {
+      const item = grid.createDiv();
+      item.createEl("strong", { text: `${value}` });
+      item.appendText(`${label}`);
+    });
+    this.contentEl.createEl("h3", { text: "Guess distribution" });
+    for (let guess = 1; guess <= 6; guess++) this.contentEl.createEl("p", { text: `${guess}: ${this.stats.distribution[guess]}` });
+  }
+}
+
+class DailyFiveSettings extends PluginSettingTab {
+  constructor(app: App, private plugin: DailyFivePlugin) { super(app, plugin); }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Daily Five" });
+    this.text("Cache base URL", "Static cache checked before the upstream API.", "cacheBaseUrl");
+    this.text("Upstream API base URL", "Used only when today's cache file is unavailable.", "apiBaseUrl");
+    new Setting(containerEl).setName("Daily Note integration").addToggle((control) => control
+      .setValue(this.plugin.data.settings.dailyNotesEnabled)
+      .onChange((value) => this.set("dailyNotesEnabled", value)));
+    this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");
+    this.text("Fallback date format", "Moment format used for the note filename.", "dailyNoteDateFormat");
+    new Setting(containerEl).setName("High contrast mode").addToggle((control) => control
+      .setValue(this.plugin.data.settings.highContrast)
+      .onChange((value) => this.set("highContrast", value)));
+    new Setting(containerEl).setName("Reset today's puzzle").setDesc("Removes today's board and result.")
+      .addButton((button) => button.setButtonText("Reset").onClick(() => void this.plugin.resetToday()));
+    new Setting(containerEl).setName("Reset all stats").setDesc("Permanently removes all game history.")
+      .addButton((button) => button.setWarning().setButtonText("Reset all").onClick(async () => {
+        if (!window.confirm("Reset all Daily Five stats?")) return;
+        this.plugin.data.stats = emptyStats();
+        this.plugin.data.game = newGame(localDate());
+        await this.plugin.save();
+        new Notice("All Daily Five stats were reset.");
+      }));
+  }
+  text(name: string, description: string, key: "cacheBaseUrl" | "apiBaseUrl" | "dailyNoteFolder" | "dailyNoteDateFormat") {
+    new Setting(this.containerEl).setName(name).setDesc(description).addText((control) => control
+      .setValue(this.plugin.data.settings[key]).onChange((value) => this.set(key, value.trim())));
+  }
+  async set<K extends keyof Settings>(key: K, value: Settings[K]) {
+    this.plugin.data.settings[key] = value;
+    await this.plugin.save();
+  }
+}
+
+function rebuildStats(history: Stats["history"]): Stats {
+  return Object.values(history).sort((a, b) => a.date.localeCompare(b.date)).reduce((stats, entry) => {
+    const consecutive = stats.lastPlayedDate && entry.date > stats.lastPlayedDate && moment(entry.date).diff(moment(stats.lastPlayedDate), "days") === 1;
+    const currentStreak = entry.won ? (consecutive ? stats.currentStreak + 1 : 1) : 0;
+    return {
+      ...stats,
+      gamesPlayed: stats.gamesPlayed + 1,
+      gamesWon: stats.gamesWon + Number(entry.won),
+      failures: stats.failures + Number(!entry.won),
+      currentStreak,
+      bestStreak: Math.max(stats.bestStreak, currentStreak),
+      lastPlayedDate: entry.date,
+      distribution: { ...stats.distribution, ...(entry.won && { [entry.guesses]: stats.distribution[entry.guesses] + 1 }) },
+      history: { ...stats.history, [entry.date]: entry }
+    };
+  }, emptyStats());
+}
+
+function statsMarkdown(stats: Stats) {
+  const lines = Object.values(stats.history).sort((a, b) => b.date.localeCompare(a.date))
+    .map((entry) => `| ${entry.date} | ${entry.won ? `${entry.guesses}/6` : "X/6"} | ${entry.difficulty}/6 |`);
+  return `# Daily Five stats
+
+- Games played: ${stats.gamesPlayed}
+- Games won: ${stats.gamesWon}
+- Win percentage: ${winPercentage(stats)}%
+- Current streak: ${stats.currentStreak}
+- Best streak: ${stats.bestStreak}
+- Failures: ${stats.failures}
+
+| Date | Result | Difficulty |
+| --- | ---: | ---: |
+${lines.join("\n")}
+`;
+}
