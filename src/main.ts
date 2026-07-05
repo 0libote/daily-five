@@ -217,7 +217,6 @@ class DailyFiveSettings extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("Daily Five").setHeading();
     this.text("Cache base URL", "Static cache checked before the upstream API.", "cacheBaseUrl");
     this.text("Upstream API base URL", "Used only when today's cache file is unavailable.", "apiBaseUrl");
     new Setting(containerEl).setName("Daily Note integration").addToggle((control) => control
@@ -231,13 +230,16 @@ class DailyFiveSettings extends PluginSettingTab {
     new Setting(containerEl).setName("Reset today's puzzle").setDesc("Removes today's board and result.")
       .addButton((button) => button.setButtonText("Reset").onClick(() => void this.plugin.resetToday()));
     new Setting(containerEl).setName("Reset all stats").setDesc("Permanently removes all game history.")
-      .addButton((button) => button.setDestructive().setButtonText("Reset all").onClick(async () => {
-        if (!await confirm(this.app, "Reset all stats?", "This permanently removes all Daily Five history.")) return;
-        this.plugin.data.stats = emptyStats();
-        this.plugin.data.game = newGame(localDate());
-        await this.plugin.save();
-        new Notice("All Daily Five stats were reset.");
-      }));
+      .addButton((button) => {
+        button.buttonEl.addClass("mod-warning");
+        button.setButtonText("Reset all").onClick(async () => {
+          if (!await confirm(this.app, "Reset all stats?", "This permanently removes all Daily Five history.")) return;
+          this.plugin.data.stats = emptyStats();
+          this.plugin.data.game = newGame(localDate());
+          await this.plugin.save();
+          new Notice("All Daily Five stats were reset.");
+        });
+      });
   }
   text(name: string, description: string, key: "cacheBaseUrl" | "apiBaseUrl" | "dailyNoteFolder" | "dailyNoteDateFormat") {
     new Setting(this.containerEl).setName(name).setDesc(description).addText((control) => control
@@ -277,10 +279,13 @@ function confirm(app: App, title: string, message: string): Promise<boolean> {
         modal.close();
         resolve(false);
       }))
-      .addButton((button) => button.setDestructive().setCta().setButtonText("Confirm").onClick(() => {
-        modal.close();
-        resolve(true);
-      }));
+      .addButton((button) => {
+        button.buttonEl.addClass("mod-warning");
+        button.setCta().setButtonText("Confirm").onClick(() => {
+          modal.close();
+          resolve(true);
+        });
+      });
     modal.onClose = () => resolve(false);
     modal.open();
   });
