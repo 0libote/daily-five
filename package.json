@@ -9,7 +9,7 @@
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test"
+    "test": "esbuild src/game.test.ts --bundle --platform=node --format=esm --outfile=dist/game.test.mjs && node --test dist/game.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
