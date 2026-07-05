@@ -1,8 +1,9 @@
 .daily-five {
   --df-correct: #538d4e;
   --df-present: #b59f3b;
-  --df-absent: #4b4d50;
-  --df-key: var(--background-modifier-hover);
+  --df-absent: #787c7e;
+  --df-key: #d3d6da;
+  --df-key-text: #111;
   --df-tile-border: var(--background-modifier-border-hover);
   box-sizing: border-box;
   display: flex;
@@ -21,14 +22,36 @@
 }
 
 .daily-five__header { margin-bottom: 1.25rem; }
+.theme-dark .daily-five {
+  --df-absent: #3a3a3c;
+  --df-key: #818384;
+  --df-key-text: #fff;
+}
+.daily-five__topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 1.8rem;
+}
 .daily-five__eyebrow {
   color: var(--text-muted);
   font-size: .68rem;
   font-weight: 700;
   letter-spacing: .14em;
-  margin-bottom: .15rem;
   text-transform: uppercase;
 }
+.daily-five button.daily-five__stats-button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 650;
+  height: auto;
+  padding: .25rem .1rem;
+}
+.daily-five button.daily-five__stats-button:hover { color: var(--text-normal); }
+.daily-five button.daily-five__stats-button:active { transform: translateY(1px); }
 .daily-five h1 {
   font-size: clamp(1.8rem, 7vw, 2.35rem);
   letter-spacing: -.045em;
@@ -71,6 +94,13 @@
 .daily-five__tile.is-correct { background: var(--df-correct); }
 .daily-five__tile.is-present { background: var(--df-present); color: #111; }
 .daily-five__tile.is-absent { background: var(--df-absent); }
+.daily-five__tile.is-revealing {
+  animation: daily-five-reveal 480ms cubic-bezier(.2, .6, .3, 1) both;
+}
+.daily-five__tile.is-revealing:nth-child(5n + 2) { animation-delay: 90ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 3) { animation-delay: 180ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 4) { animation-delay: 270ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 5) { animation-delay: 360ms; }
 .daily-five__message {
   font-size: var(--font-ui-small);
   font-weight: 600;
@@ -95,7 +125,7 @@
   border: 0;
   border-radius: 4px;
   box-shadow: none;
-  color: var(--text-normal);
+  color: var(--df-key-text);
   display: flex;
   flex: 1 1 0;
   font-family: var(--font-interface);
@@ -149,6 +179,22 @@
   font-size: var(--font-ui-smaller);
 }
 .daily-five__stats strong { color: var(--text-normal); font-size: 1.6rem; }
+
+@keyframes daily-five-reveal {
+  0% { transform: rotateX(0); }
+  45% { transform: rotateX(90deg); }
+  55% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-five__tile,
+  .daily-five button.daily-five__key,
+  .daily-five__tile.is-revealing {
+    animation: none;
+    transition: none;
+  }
+}
 
 @media (max-width: 400px) {
   .daily-five { padding: .85rem .35rem 1.25rem; }

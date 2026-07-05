@@ -2,9 +2,7 @@ import {
   App, ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile,
   WorkspaceLeaf, moment, normalizePath, requestUrl
 } from "obsidian";
-import {
-  appHasDailyNotesPluginLoaded, createDailyNote, getDailyNoteSettings
-} from "obsidian-daily-notes-interface";
+import { createDailyNote } from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
 import { keyboardStates, newGame, submitGuess } from "./game";
@@ -62,6 +60,7 @@ export default class DailyFivePlugin extends Plugin {
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
     this.app.workspace.setActiveLeaf(leaf, { focus: true });
+    if (this.data.settings.dailyNotesEnabled) await this.updateDailyNote(false);
   }
 
   async save() {
@@ -101,7 +100,7 @@ export default class DailyFivePlugin extends Plugin {
     const target = this.dailyNotePath();
     let file = this.app.vault.getAbstractFileByPath(target);
     if (!file && offerCreate && await confirm(this.app, "Create Daily Note?", `Create ${target}?`)) {
-      if (appHasDailyNotesPluginLoaded()) {
+      if (this.dailyNoteSettings()) {
         const today = (moment as unknown as () => Parameters<typeof createDailyNote>[0])();
         file = await createDailyNote(today) ?? null;
       } else {
@@ -119,11 +118,24 @@ export default class DailyFivePlugin extends Plugin {
   }
 
   dailyNotePath() {
-    const daily = appHasDailyNotesPluginLoaded() ? getDailyNoteSettings() : undefined;
+    const daily = this.dailyNoteSettings();
     const folder = daily?.folder ?? this.data.settings.dailyNoteFolder;
     const format = daily?.format ?? this.data.settings.dailyNoteDateFormat;
     const formatDate = moment as unknown as () => { format(pattern: string): string };
     return normalizePath(`${folder ? `${folder}/` : ""}${formatDate().format(format)}.md`);
+  }
+
+  dailyNoteSettings() {
+    const app = this.app as App & {
+      internalPlugins?: {
+        getPluginById(id: string): {
+          enabled: boolean;
+          instance?: { options?: { folder?: string; format?: string; template?: string } };
+        } | undefined;
+      };
+    };
+    const daily = app.internalPlugins?.getPluginById("daily-notes");
+    return daily?.enabled ? daily.instance?.options : undefined;
   }
 
   async exportStats() {
@@ -154,7 +166,10 @@ class DailyFiveView extends ItemView {
     root.addClass("daily-five");
     root.toggleClass("daily-five--contrast", this.plugin.data.settings.highContrast);
     const header = root.createEl("header", { cls: "daily-five__header" });
-    header.createDiv({ cls: "daily-five__eyebrow", text: "Today’s word" });
+    const topbar = header.createDiv({ cls: "daily-five__topbar" });
+    topbar.createDiv({ cls: "daily-five__eyebrow", text: "Today’s word" });
+    const statsButton = topbar.createEl("button", { cls: "daily-five__stats-button", text: "Stats" });
+    statsButton.onclick = () => new StatsModal(this.app, this.plugin.data.stats).open();
     header.createEl("h1", { text: "Daily Five" });
     try {
       const puzzle = await this.plugin.ensurePuzzle();
@@ -180,7 +195,10 @@ class DailyFiveView extends ItemView {
       for (let column = 0; column < 5; column++) {
         const tile = board.createDiv({ cls: "daily-five__tile", text: guess?.word[column] ?? draft[column] ?? "" });
         const state = guess?.score[column];
-        if (state) tile.addClass(`is-${state}`);
+        if (state) {
+          tile.addClass(`is-${state}`);
+          if (row === game.guesses.length - 1) tile.addClass("is-revealing");
+        }
         else if (draft[column]) tile.addClass("is-filled");
       }
     }
