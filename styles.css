@@ -1,5 +1,52 @@
 .daily-five {
   max-width: 32rem;
   margin: 0 auto;
+  padding: var(--size-4-4);
 }
 
+.daily-five-board {
+  display: grid;
+  gap: var(--size-2-2);
+  margin-block: var(--size-4-4);
+}
+
+.daily-five-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--size-2-2);
+}
+
+.daily-five-tile {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  place-items: center;
+  font-weight: var(--font-bold);
+}
+
+.daily-five-correct {
+  background: var(--color-green);
+  color: var(--text-on-accent);
+}
+
+.daily-five-present {
+  background: var(--color-yellow);
+  color: var(--text-on-accent);
+}
+
+.daily-five-absent {
+  background: var(--background-modifier-border);
+}
+
+.daily-five-form {
+  display: flex;
+  justify-content: center;
+  gap: var(--size-4-2);
+}
+
+.daily-five-form input {
+  max-width: 10rem;
+  text-transform: uppercase;
+}
