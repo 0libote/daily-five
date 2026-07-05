@@ -3,6 +3,7 @@ import type { GameState, Puzzle, Stats } from "./types";
 
 export const START = "<!-- daily-five:start -->";
 export const END = "<!-- daily-five:end -->";
+export const PLACEHOLDER = "{{daily-five}}";
 
 export function resultBlock(game: GameState, puzzle: Puzzle, stats: Stats): string {
   const result = game.status === "won"
@@ -26,5 +27,6 @@ export function replaceResultBlock(content: string, block: string): string {
   const start = content.indexOf(START);
   const end = content.indexOf(END, start + START.length);
   if (start >= 0 && end >= 0) return content.slice(0, start) + block + content.slice(end + END.length);
+  if (content.includes(PLACEHOLDER)) return content.replace(PLACEHOLDER, block);
   return `${content.trimEnd()}${content.trim() ? "\n\n" : ""}${block}\n`;
 }

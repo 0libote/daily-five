@@ -261,7 +261,9 @@ class DailyFiveSettings extends PluginSettingTab {
     containerEl.empty();
     this.text("Cache base URL", "Static cache checked before the upstream API.", "cacheBaseUrl");
     this.text("Upstream API base URL", "Used only when today's cache file is unavailable.", "apiBaseUrl");
-    new Setting(containerEl).setName("Daily Note integration").addToggle((control) => control
+    new Setting(containerEl).setName("Daily Note integration")
+      .setDesc("Place {{daily-five}} in your Daily Note template to choose where results appear.")
+      .addToggle((control) => control
       .setValue(this.plugin.data.settings.dailyNotesEnabled)
       .onChange((value) => this.set("dailyNotesEnabled", value)));
     this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");

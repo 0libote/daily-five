@@ -52,6 +52,11 @@ it("replaces only the marked Daily Note block", () => {
     .toBe("before\nNEW\nafter");
 });
 
+it("inserts the Daily Note block at the template placeholder", () => {
+  expect(replaceResultBlock("# Morning\n\n{{daily-five}}\n\n## Notes", "BLOCK"))
+    .toBe("# Morning\n\nBLOCK\n\n## Notes");
+});
+
 it("renders not-started and in-progress Daily Note states", () => {
   const stats = emptyStats();
   expect(resultBlock(newGame(puzzle.date), puzzle, stats)).toContain("Result: Not started");
