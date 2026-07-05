@@ -28,6 +28,10 @@ The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today
 
 Game progress, settings, and stats stay in your vault's local plugin data. Daily Five makes puzzle requests to GitHub raw content and, when needed, WordleHints.co.uk. It has no analytics and does not send vault content.
 
+## Release notes
+
+See [CHANGELOG.md](CHANGELOG.md) for version-by-version release notes.
+
 ## Build
 
 Requires Node.js 22 or later.
