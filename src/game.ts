@@ -1,5 +1,12 @@
 export type LetterResult = "absent" | "present" | "correct";
 
+export interface GameState {
+  date: string;
+  guesses: string[];
+  completed: boolean;
+  won: boolean;
+}
+
 export function scoreGuess(guess: string, answer: string): LetterResult[] {
   if (!/^[a-z]{5}$/i.test(guess) || !/^[a-z]{5}$/i.test(answer)) {
     throw new Error("Guess and answer must be five letters.");
@@ -23,4 +30,3 @@ export function scoreGuess(guess: string, answer: string): LetterResult[] {
 
   return result;
 }
-
