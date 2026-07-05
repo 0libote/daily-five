@@ -2,6 +2,9 @@ import {
   App, ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile,
   WorkspaceLeaf, moment, normalizePath, requestUrl
 } from "obsidian";
+import {
+  appHasDailyNotesPluginLoaded, createDailyNote, getDailyNoteSettings
+} from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
 import { newGame, submitGuess } from "./game";
@@ -70,6 +73,7 @@ export default class DailyFivePlugin extends Plugin {
     this.data.game = game;
     this.data.stats = recordResult(this.data.stats, game, this.puzzle);
     await this.save();
+    if (this.data.settings.dailyNotesEnabled) await this.updateDailyNote(false);
   }
 
   async resetToday() {
@@ -84,31 +88,40 @@ export default class DailyFivePlugin extends Plugin {
     new Notice("Today's puzzle was reset.");
   }
 
-  async updateDailyNote() {
-    const today = localDate();
-    const entry = this.data.stats.history[today];
+  async updateDailyNote(offerCreate = true) {
     if (!this.data.settings.dailyNotesEnabled) return void new Notice("Daily Note integration is disabled.");
-    if (!entry) return void new Notice("Finish today's puzzle first.");
+    let puzzle: Puzzle;
+    try {
+      puzzle = await this.ensurePuzzle();
+    } catch (error) {
+      if (offerCreate) new Notice(error instanceof Error ? error.message : "Today's puzzle is unavailable.");
+      return;
+    }
+    const game = this.data.game ?? newGame(puzzle.date);
     const target = this.dailyNotePath();
     let file = this.app.vault.getAbstractFileByPath(target);
-    if (!file && await confirm(this.app, "Create Daily Note?", `Create ${target}?`)) {
-      const folder = target.slice(0, target.lastIndexOf("/"));
-      if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
-      file = await this.app.vault.create(target, "");
+    if (!file && offerCreate && await confirm(this.app, "Create Daily Note?", `Create ${target}?`)) {
+      if (appHasDailyNotesPluginLoaded()) {
+        const today = (moment as unknown as () => Parameters<typeof createDailyNote>[0])();
+        file = await createDailyNote(today) ?? null;
+      } else {
+        const folder = target.slice(0, target.lastIndexOf("/"));
+        if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        file = await this.app.vault.create(target, "");
+      }
     }
-    if (!(file instanceof TFile)) return void new Notice("Daily Note was not found.");
-    await this.app.vault.process(file, (content) => replaceResultBlock(content, resultBlock(entry, this.data.stats)));
-    new Notice("Daily Five result updated.");
+    if (!(file instanceof TFile)) {
+      if (offerCreate) new Notice("Daily Note was not found.");
+      return;
+    }
+    await this.app.vault.process(file, (content) => replaceResultBlock(content, resultBlock(game, puzzle, this.data.stats)));
+    if (offerCreate) new Notice("Daily Five result updated.");
   }
 
   dailyNotePath() {
-    const internal = this.app as App & {
-      internalPlugins?: { getPluginById(id: string): { enabled: boolean; instance?: { options?: { folder?: string; format?: string } } } | undefined }
-    };
-    const daily = internal.internalPlugins?.getPluginById("daily-notes");
-    const options = daily?.enabled ? daily.instance?.options : undefined;
-    const folder = options?.folder ?? this.data.settings.dailyNoteFolder;
-    const format = options?.format ?? this.data.settings.dailyNoteDateFormat;
+    const daily = appHasDailyNotesPluginLoaded() ? getDailyNoteSettings() : undefined;
+    const folder = daily?.folder ?? this.data.settings.dailyNoteFolder;
+    const format = daily?.format ?? this.data.settings.dailyNoteDateFormat;
     const formatDate = moment as unknown as () => { format(pattern: string): string };
     return normalizePath(`${folder ? `${folder}/` : ""}${formatDate().format(format)}.md`);
   }

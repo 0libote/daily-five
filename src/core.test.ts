@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween, localDate } from "./date";
-import { replaceResultBlock } from "./daily-note";
+import { replaceResultBlock, resultBlock } from "./daily-note";
 import { newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
@@ -41,6 +41,14 @@ describe("stats", () => {
 it("replaces only the marked Daily Note block", () => {
   expect(replaceResultBlock("before\n<!-- daily-five:start -->old<!-- daily-five:end -->\nafter", "NEW"))
     .toBe("before\nNEW\nafter");
+});
+
+it("renders not-started and in-progress Daily Note states", () => {
+  const stats = emptyStats();
+  expect(resultBlock(newGame(puzzle.date), puzzle, stats)).toContain("Result: Not started");
+  const started = submitGuess(newGame(puzzle.date), puzzle.answer, "CRANE");
+  expect(resultBlock(started, puzzle, stats)).toContain("Result: In progress (1/6)");
+  expect(resultBlock(started, puzzle, stats)).toContain("⬛⬛🟩⬛⬛");
 });
 
 it("uses cache first and falls back to upstream", async () => {

@@ -15,5 +15,8 @@
     "tslib": "^2.8.1",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "obsidian-daily-notes-interface": "^0.9.5"
   }
 }

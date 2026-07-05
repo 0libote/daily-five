@@ -1,17 +1,24 @@
-import type { HistoryEntry, Stats } from "./types";
+import { emojiRow } from "./game";
+import type { GameState, Puzzle, Stats } from "./types";
 
 export const START = "<!-- daily-five:start -->";
 export const END = "<!-- daily-five:end -->";
 
-export function resultBlock(entry: HistoryEntry, stats: Stats): string {
-  const result = entry.won ? `${entry.guesses}/6` : "X/6";
+export function resultBlock(game: GameState, puzzle: Puzzle, stats: Stats): string {
+  const result = game.status === "won"
+    ? `${game.guesses.length}/6`
+    : game.status === "lost"
+      ? "X/6"
+      : game.guesses.length
+        ? `In progress (${game.guesses.length}/6)`
+        : "Not started";
   return `${START}
 ## Daily Five
 Result: ${result}
-Difficulty: ${entry.difficulty} / 6
+Difficulty: ${puzzle.difficulty} / 6
 Streak: ${stats.currentStreak}
 
-${entry.rows.join("\n")}
+${game.guesses.map((guess) => emojiRow(guess.score)).join("\n")}
 ${END}`;
 }
 
