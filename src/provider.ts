@@ -35,7 +35,7 @@ export async function getPuzzle(
     try {
       return normalise(await fetchJson(`${apiBaseUrl.replace(/\/$/, "")}/answers/latest`), today);
     } catch {
-      throw new Error("Today's puzzle is unavailable. Your progress is safe; try again later.");
+      throw new Error("Today's game isn't ready yet. Check back a little later.");
     }
   }
 }

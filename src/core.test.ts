@@ -97,6 +97,12 @@ it("does not call upstream when cache has today's puzzle", async () => {
   expect(calls).toEqual(["https://cache/2026-07-05.json"]);
 });
 
+it("reports when today's puzzle is not ready", async () => {
+  await expect(getPuzzle(puzzle.date, "https://cache", "https://api", async () => {
+    throw new Error("missing");
+  })).rejects.toThrow("Today's game isn't ready yet");
+});
+
 it("handles local and consecutive dates", () => {
   expect(localDate(new Date(2026, 6, 5, 23, 59))).toBe("2026-07-05");
   expect(daysBetween("2026-02-28", "2026-03-01")).toBe(1);

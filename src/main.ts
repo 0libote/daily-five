@@ -187,8 +187,10 @@ class DailyFiveView extends ItemView {
       else message.setText(game.status === "won" ? `Solved in ${game.guesses.length}/6 — ${puzzle.answer}` : `The word was ${puzzle.answer}`);
       if (game.status === "playing") this.drawKeyboard(root);
     } catch (error) {
-      root.createDiv({ cls: "daily-five__error", text: error instanceof Error ? error.message : "Today's puzzle is unavailable." });
-      root.createEl("button", { text: "Try again" }).onclick = () => void this.render();
+      const empty = root.createDiv({ cls: "daily-five__empty" });
+      empty.createEl("h2", { text: "Not ready yet" });
+      empty.createEl("p", { text: error instanceof Error ? error.message : "Today's game isn't ready yet. Check back a little later." });
+      empty.createEl("button", { text: "Check again", cls: "mod-cta" }).onclick = () => void this.render();
     }
   }
 

@@ -162,7 +162,21 @@
 .daily-five button.daily-five__key.is-correct:hover { background: var(--df-correct); }
 .daily-five button.daily-five__key.is-present:hover { background: var(--df-present); }
 .daily-five button.daily-five__key.is-absent:hover { background: var(--df-absent); }
-.daily-five__error { color: var(--text-error); margin: 2rem 0 1rem; }
+.daily-five__empty {
+  align-self: center;
+  margin: clamp(3rem, 12vh, 7rem) auto 0;
+  max-width: 22rem;
+}
+.daily-five__empty h2 {
+  font-size: 1.45rem;
+  letter-spacing: -.02em;
+  margin: 0 0 .5rem;
+}
+.daily-five__empty p {
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin: 0 0 1.25rem;
+}
 .daily-five__stats {
   display: grid;
   gap: .5rem;
