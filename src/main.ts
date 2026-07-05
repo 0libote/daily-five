@@ -31,7 +31,7 @@ export default class DailyFivePlugin extends Plugin {
       game: saved?.game
     };
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
-    this.addRibbonIcon("grid-3x3", "Open today's Daily Five", () => void this.openGame());
+    this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
     this.addCommand({ id: "show-lifetime-stats", name: "Show lifetime stats", callback: () => new StatsModal(this.app, this.data.stats).open() });
@@ -127,7 +127,7 @@ class DailyFiveView extends ItemView {
   constructor(leaf: WorkspaceLeaf, private plugin: DailyFivePlugin) { super(leaf); }
   getViewType() { return VIEW_TYPE; }
   getDisplayText() { return "Daily Five"; }
-  getIcon() { return "grid-3x3"; }
+  getIcon() { return "dice"; }
   async onOpen() {
     this.registerDomEvent(this.containerEl.ownerDocument, "keydown", (event) => {
       if (this.containerEl.isShown()) this.handleKey(event.key);
