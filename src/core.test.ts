@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
-import { newGame, scoreGuess, submitGuess } from "./game";
+import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
 import type { Puzzle } from "./types";
@@ -14,6 +14,15 @@ const puzzle: Puzzle = {
 describe("game", () => {
   it("scores positions", () => expect(scoreGuess("SLATE", "SWAMI")).toEqual(["correct", "absent", "correct", "absent", "absent"]));
   it("does not score duplicate letters twice", () => expect(scoreGuess("SHEEP", "SWAMI")).toEqual(["correct", "absent", "absent", "absent", "absent"]));
+  it("keeps the strongest keyboard state for each letter", () => {
+    const states = keyboardStates([
+      { word: "SHEEP", score: scoreGuess("SHEEP", "SWAMI") },
+      { word: "CRANE", score: scoreGuess("CRANE", "SWAMI") }
+    ]);
+    expect(states.get("S")).toBe("correct");
+    expect(states.get("A")).toBe("correct");
+    expect(states.get("E")).toBe("absent");
+  });
   it("wins and loses after six guesses", () => {
     expect(submitGuess(newGame(puzzle.date), puzzle.answer, "SWAMI").status).toBe("won");
     let game = newGame(puzzle.date);

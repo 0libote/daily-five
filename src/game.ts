@@ -1,4 +1,4 @@
-import type { GameState, LetterState } from "./types";
+import type { GameState, Guess, LetterState } from "./types";
 
 export function scoreGuess(guess: string, answer: string): LetterState[] {
   const letters = answer.toUpperCase().split("");
@@ -40,3 +40,14 @@ export function submitGuess(state: GameState, answer: string, word: string): Gam
 
 export const emojiRow = (score: LetterState[]) =>
   score.map((value) => value === "correct" ? "🟩" : value === "present" ? "🟨" : "⬛").join("");
+
+export function keyboardStates(guesses: Guess[]): Map<string, LetterState> {
+  const states = new Map<string, LetterState>();
+  const rank: Record<LetterState, number> = { absent: 1, present: 2, correct: 3 };
+  guesses.forEach((guess) => guess.word.split("").forEach((letter, index) => {
+    const state = guess.score[index];
+    const previous = states.get(letter);
+    if (state && (!previous || rank[state] > rank[previous])) states.set(letter, state);
+  }));
+  return states;
+}

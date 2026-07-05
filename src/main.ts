@@ -7,7 +7,7 @@ import {
 } from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
-import { newGame, submitGuess } from "./game";
+import { keyboardStates, newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult, winPercentage } from "./stats";
 import type { GameState, PluginData, Puzzle, Settings, Stats } from "./types";
@@ -153,13 +153,15 @@ class DailyFiveView extends ItemView {
     root.empty();
     root.addClass("daily-five");
     root.toggleClass("daily-five--contrast", this.plugin.data.settings.highContrast);
-    root.createEl("h1", { text: "Daily Five" });
+    const header = root.createEl("header", { cls: "daily-five__header" });
+    header.createDiv({ cls: "daily-five__eyebrow", text: "Today’s word" });
+    header.createEl("h1", { text: "Daily Five" });
     try {
       const puzzle = await this.plugin.ensurePuzzle();
       const game = this.plugin.data.game ?? newGame(puzzle.date);
-      root.createDiv({ cls: "daily-five__meta", text: `Puzzle ${puzzle.game} · ${puzzle.dayName} · Difficulty ${puzzle.difficulty}/6` });
+      header.createDiv({ cls: "daily-five__meta", text: `No. ${puzzle.game} · ${puzzle.dayName} · ${puzzle.difficulty}/6 difficulty` });
       this.drawBoard(root, game);
-      const message = root.createDiv({ cls: "daily-five__message" });
+      const message = root.createDiv({ cls: "daily-five__message", attr: { role: "status", "aria-live": "polite" } });
       if (game.status === "playing") message.setText(game.guesses.length ? `${6 - game.guesses.length} guesses left` : "Enter a five-letter word");
       else message.setText(game.status === "won" ? `Solved in ${game.guesses.length}/6 — ${puzzle.answer}` : `The word was ${puzzle.answer}`);
       if (game.status === "playing") this.drawKeyboard(root);
@@ -179,17 +181,26 @@ class DailyFiveView extends ItemView {
         const tile = board.createDiv({ cls: "daily-five__tile", text: guess?.word[column] ?? draft[column] ?? "" });
         const state = guess?.score[column];
         if (state) tile.addClass(`is-${state}`);
+        else if (draft[column]) tile.addClass("is-filled");
       }
     }
   }
 
   drawKeyboard(root: HTMLElement) {
+    const keyStates = keyboardStates(this.plugin.data.game?.guesses ?? []);
     const keyboard = root.createDiv({ cls: "daily-five__keyboard", attr: { "aria-label": "On-screen keyboard" } });
-    ["QWERTYUIOP", "ASDFGHJKL", "↵ZXCVBNM⌫"].forEach((row) => {
-      const line = keyboard.createDiv();
-      [...row].forEach((key) => {
-        const button = line.createEl("button", { text: key, attr: { "aria-label": key === "↵" ? "Enter" : key === "⌫" ? "Backspace" : key } });
-        button.onclick = () => this.handleKey(key === "↵" ? "Enter" : key === "⌫" ? "Backspace" : key);
+    [["Q","W","E","R","T","Y","U","I","O","P"], ["A","S","D","F","G","H","J","K","L"], ["Enter","Z","X","C","V","B","N","M","Backspace"]].forEach((row) => {
+      const line = keyboard.createDiv({ cls: "daily-five__keyboard-row" });
+      row.forEach((key) => {
+        const isAction = key === "Enter" || key === "Backspace";
+        const button = line.createEl("button", {
+          text: key === "Backspace" ? "⌫" : key,
+          cls: `daily-five__key${isAction ? " daily-five__key--wide" : ""}`,
+          attr: { "aria-label": key }
+        });
+        const state = keyStates.get(key);
+        if (state) button.addClass(`is-${state}`);
+        button.onclick = () => this.handleKey(key);
       });
     });
   }
