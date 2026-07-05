@@ -2,7 +2,7 @@ import {
   App, ItemView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile,
   WorkspaceLeaf, moment, normalizePath, requestUrl
 } from "obsidian";
-import { localDate } from "./date";
+import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
 import { newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
@@ -43,8 +43,10 @@ export default class DailyFivePlugin extends Plugin {
   async ensurePuzzle() {
     const today = localDate();
     if (this.puzzle?.date === today) return this.puzzle;
-    this.puzzle = await getPuzzle(today, this.data.settings.cacheBaseUrl, this.data.settings.apiBaseUrl,
-      async (url) => (await requestUrl({ url })).json);
+    this.puzzle = await getPuzzle(today, this.data.settings.cacheBaseUrl, this.data.settings.apiBaseUrl, async (url) => {
+      const response = await requestUrl({ url });
+      return response.json as unknown;
+    });
     if (this.data.game?.date !== today) this.data.game = newGame(today);
     await this.save();
     return this.puzzle;
@@ -56,7 +58,7 @@ export default class DailyFivePlugin extends Plugin {
       leaf = this.app.workspace.getLeaf(false);
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
-    await this.app.workspace.revealLeaf(leaf);
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
   }
 
   async save() {
@@ -72,7 +74,7 @@ export default class DailyFivePlugin extends Plugin {
 
   async resetToday() {
     const today = localDate();
-    if (this.data.stats.history[today] && !window.confirm("This removes today's result from lifetime stats. Reset it?")) return;
+    if (this.data.stats.history[today] && !await confirm(this.app, "Reset today's puzzle?", "This removes today's result from lifetime stats.")) return;
     const history = { ...this.data.stats.history };
     delete history[today];
     this.data.game = newGame(today);
@@ -89,7 +91,7 @@ export default class DailyFivePlugin extends Plugin {
     if (!entry) return void new Notice("Finish today's puzzle first.");
     const target = this.dailyNotePath();
     let file = this.app.vault.getAbstractFileByPath(target);
-    if (!file && window.confirm(`Create ${target}?`)) {
+    if (!file && await confirm(this.app, "Create Daily Note?", `Create ${target}?`)) {
       const folder = target.slice(0, target.lastIndexOf("/"));
       if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
       file = await this.app.vault.create(target, "");
@@ -107,7 +109,8 @@ export default class DailyFivePlugin extends Plugin {
     const options = daily?.enabled ? daily.instance?.options : undefined;
     const folder = options?.folder ?? this.data.settings.dailyNoteFolder;
     const format = options?.format ?? this.data.settings.dailyNoteDateFormat;
-    return normalizePath(`${folder ? `${folder}/` : ""}${moment().format(format)}.md`);
+    const formatDate = moment as unknown as () => { format(pattern: string): string };
+    return normalizePath(`${folder ? `${folder}/` : ""}${formatDate().format(format)}.md`);
   }
 
   async exportStats() {
@@ -126,7 +129,7 @@ class DailyFiveView extends ItemView {
   getDisplayText() { return "Daily Five"; }
   getIcon() { return "grid-3x3"; }
   async onOpen() {
-    this.registerDomEvent(document, "keydown", (event) => {
+    this.registerDomEvent(this.containerEl.ownerDocument, "keydown", (event) => {
       if (this.containerEl.isShown()) this.handleKey(event.key);
     });
     await this.render();
@@ -214,7 +217,7 @@ class DailyFiveSettings extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Daily Five" });
+    new Setting(containerEl).setName("Daily Five").setHeading();
     this.text("Cache base URL", "Static cache checked before the upstream API.", "cacheBaseUrl");
     this.text("Upstream API base URL", "Used only when today's cache file is unavailable.", "apiBaseUrl");
     new Setting(containerEl).setName("Daily Note integration").addToggle((control) => control
@@ -228,8 +231,8 @@ class DailyFiveSettings extends PluginSettingTab {
     new Setting(containerEl).setName("Reset today's puzzle").setDesc("Removes today's board and result.")
       .addButton((button) => button.setButtonText("Reset").onClick(() => void this.plugin.resetToday()));
     new Setting(containerEl).setName("Reset all stats").setDesc("Permanently removes all game history.")
-      .addButton((button) => button.setWarning().setButtonText("Reset all").onClick(async () => {
-        if (!window.confirm("Reset all Daily Five stats?")) return;
+      .addButton((button) => button.setDestructive().setButtonText("Reset all").onClick(async () => {
+        if (!await confirm(this.app, "Reset all stats?", "This permanently removes all Daily Five history.")) return;
         this.plugin.data.stats = emptyStats();
         this.plugin.data.game = newGame(localDate());
         await this.plugin.save();
@@ -248,7 +251,7 @@ class DailyFiveSettings extends PluginSettingTab {
 
 function rebuildStats(history: Stats["history"]): Stats {
   return Object.values(history).sort((a, b) => a.date.localeCompare(b.date)).reduce((stats, entry) => {
-    const consecutive = stats.lastPlayedDate && entry.date > stats.lastPlayedDate && moment(entry.date).diff(moment(stats.lastPlayedDate), "days") === 1;
+    const consecutive = stats.lastPlayedDate && entry.date > stats.lastPlayedDate && daysBetween(stats.lastPlayedDate, entry.date) === 1;
     const currentStreak = entry.won ? (consecutive ? stats.currentStreak + 1 : 1) : 0;
     return {
       ...stats,
@@ -262,6 +265,25 @@ function rebuildStats(history: Stats["history"]): Stats {
       history: { ...stats.history, [entry.date]: entry }
     };
   }, emptyStats());
+}
+
+function confirm(app: App, title: string, message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const modal = new Modal(app);
+    modal.titleEl.setText(title);
+    modal.contentEl.createEl("p", { text: message });
+    new Setting(modal.contentEl)
+      .addButton((button) => button.setButtonText("Cancel").onClick(() => {
+        modal.close();
+        resolve(false);
+      }))
+      .addButton((button) => button.setDestructive().setCta().setButtonText("Confirm").onClick(() => {
+        modal.close();
+        resolve(true);
+      }));
+    modal.onClose = () => resolve(false);
+    modal.open();
+  });
 }
 
 function statsMarkdown(stats: Stats) {

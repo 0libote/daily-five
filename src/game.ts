@@ -3,7 +3,7 @@ import type { GameState, LetterState } from "./types";
 export function scoreGuess(guess: string, answer: string): LetterState[] {
   const letters = answer.toUpperCase().split("");
   const input = guess.toUpperCase().split("");
-  const score: LetterState[] = Array(5).fill("absent");
+  const score: LetterState[] = ["absent", "absent", "absent", "absent", "absent"];
 
   input.forEach((letter, index) => {
     if (letter === letters[index]) {
