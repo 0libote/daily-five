@@ -30,8 +30,11 @@ describe("stats", () => {
     expect(first.distribution[1]).toBe(1);
     expect(recordResult(first, won, puzzle)).toBe(first);
     const next = { ...puzzle, date: "2026-07-06" };
-    const lost = { ...newGame(next.date), status: "lost" as const };
-    expect(recordResult(first, lost, next)).toMatchObject({ gamesPlayed: 2, failures: 1, currentStreak: 0 });
+    const second = recordResult(first, { ...won, date: next.date }, next);
+    expect(second).toMatchObject({ currentStreak: 2, bestStreak: 2 });
+    const later = { ...puzzle, date: "2026-07-08" };
+    const lost = { ...newGame(later.date), status: "lost" as const };
+    expect(recordResult(second, lost, later)).toMatchObject({ gamesPlayed: 3, failures: 1, currentStreak: 0 });
   });
 });
 
@@ -49,6 +52,15 @@ it("uses cache first and falls back to upstream", async () => {
   });
   expect(fetched.answer).toBe("SWAMI");
   expect(calls).toEqual(["https://cache/2026-07-05.json", "https://api/answers/latest"]);
+});
+
+it("does not call upstream when cache has today's puzzle", async () => {
+  const calls: string[] = [];
+  await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
+    calls.push(url);
+    return puzzle;
+  });
+  expect(calls).toEqual(["https://cache/2026-07-05.json"]);
 });
 
 it("handles local and consecutive dates", () => {
