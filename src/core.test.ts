@@ -63,7 +63,18 @@ it("renders not-started and in-progress Daily Note states", () => {
   expect(resultBlock(newGame(puzzle.date), puzzle, stats)).toContain("Result: Not started");
   const started = submitGuess(newGame(puzzle.date), puzzle.answer, "CRANE");
   expect(resultBlock(started, puzzle, stats)).toContain("Result: In progress (1/6)");
+  expect(resultBlock(started, puzzle, stats)).toContain("CRANE ⬛⬛🟩⬛⬛");
   expect(resultBlock(started, puzzle, stats)).toContain("⬛⬛🟩⬛⬛");
+});
+
+it("supports word-only notes and reveals the answer after a loss", () => {
+  const lost = { ...newGame(puzzle.date), status: "lost" as const, guesses: [
+    { word: "CRANE", score: scoreGuess("CRANE", puzzle.answer) }
+  ] };
+  const block = resultBlock(lost, puzzle, emptyStats(), "words");
+  expect(block).toContain("Answer: SWAMI");
+  expect(block).toContain("\nCRANE\n");
+  expect(block).not.toContain("⬛");
 });
 
 it("uses cache first and falls back to upstream", async () => {

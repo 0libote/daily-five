@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: Settings = {
   dailyNotesEnabled: true,
   dailyNoteFolder: "",
   dailyNoteDateFormat: "YYYY-MM-DD",
+  dailyNoteDisplay: "both",
   highContrast: false
 };
 
@@ -114,7 +115,10 @@ export default class DailyFivePlugin extends Plugin {
       if (offerCreate) new Notice("Daily Note was not found.");
       return;
     }
-    await this.app.vault.process(file, (content) => replaceResultBlock(content, resultBlock(game, puzzle, this.data.stats)));
+    await this.app.vault.process(file, (content) => replaceResultBlock(
+      content,
+      resultBlock(game, puzzle, this.data.stats, this.data.settings.dailyNoteDisplay)
+    ));
     if (offerCreate) new Notice("Daily Five result updated.");
   }
 
@@ -296,6 +300,18 @@ class DailyFiveSettings extends PluginSettingTab {
           new Notice("Could not copy the placeholder.");
         }
       }));
+    new Setting(containerEl).setName("Guess display")
+      .setDesc("Choose how guesses appear in the Daily Note block.")
+      .addDropdown((control) => control
+        .addOption("squares", "Coloured squares")
+        .addOption("words", "Guessed words")
+        .addOption("both", "Words and squares")
+        .setValue(this.plugin.data.settings.dailyNoteDisplay)
+        .onChange(async (value) => {
+          if (value !== "squares" && value !== "words" && value !== "both") return;
+          await this.set("dailyNoteDisplay", value);
+          await this.plugin.updateDailyNote(false);
+        }));
     this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");
     this.text("Fallback date format", "Moment format used for the note filename.", "dailyNoteDateFormat");
     new Setting(containerEl).setName("High contrast mode").addToggle((control) => control

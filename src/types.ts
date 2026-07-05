@@ -1,5 +1,6 @@
 export type LetterState = "absent" | "present" | "correct";
 export type GameStatus = "playing" | "won" | "lost";
+export type DailyNoteDisplay = "squares" | "words" | "both";
 
 export interface Puzzle {
   date: string;
@@ -50,6 +51,7 @@ export interface Settings {
   dailyNotesEnabled: boolean;
   dailyNoteFolder: string;
   dailyNoteDateFormat: string;
+  dailyNoteDisplay: DailyNoteDisplay;
   highContrast: boolean;
 }
 

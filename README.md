@@ -14,7 +14,7 @@ Open the game from its ribbon icon or run **Daily Five: Open today's puzzle**. T
 
 ## Daily Notes
 
-Finish the puzzle, then choose **Daily Five: Insert or update today's result in daily note**. Daily Five uses the core Daily Notes folder and date format when available. Otherwise, configure the two fallback fields in settings.
+Daily Five updates today's note automatically after each accepted guess. It uses the core Daily Notes folder and date format when available; otherwise, configure the two fallback fields in settings. You can show coloured squares, guessed words, or both. Failed games include the answer.
 
 Put `{{daily-five}}` in your Daily Note template where you want the game block to appear. If the placeholder is absent, the block is appended to the note.
 
