@@ -2,6 +2,19 @@
 
 Release notes for Daily Five.
 
+## 0.1.9 - 2026-07-05
+
+### Added
+
+- Added a Daily Note guess display setting with options for coloured squares, guessed words, or both.
+- Added word display in Daily Note result rows when using the default "Words and squares" mode.
+- Added answer reveal inside the Daily Note block after a failed game.
+
+### Changed
+
+- Daily Five now updates today's note automatically after each accepted guess when Daily Note integration is enabled.
+- Updated the README Daily Notes section to explain the automatic updates and display options.
+
 ## 0.1.8 - 2026-07-05
 
 ### Fixed
