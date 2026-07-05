@@ -12,13 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Check tag matches manifest
-        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./manifest.json').version")"
+      - name: Set version from tag
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          node -e 'const fs=require("fs"),p=require("./manifest.json"),v=require("./versions.json"); p.version=process.env.VERSION.replace(/^v/,""); v[p.version]=p.minAppVersion; fs.writeFileSync("manifest.json",JSON.stringify(p,null,2)+"\n"); fs.writeFileSync("versions.json",JSON.stringify(v,null,2)+"\n")'
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add package.json package-lock.json manifest.json versions.json
+          git diff --cached --quiet || git commit -m "chore: release v$VERSION"
+          git push origin main
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
