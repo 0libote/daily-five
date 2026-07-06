@@ -85,7 +85,31 @@ it("uses cache first and falls back to upstream", async () => {
     return puzzle;
   });
   expect(fetched.answer).toBe("SWAMI");
-  expect(calls).toEqual(["https://cache/2026-07-05.json", "https://api/answers/latest"]);
+  expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json", "https://api/answers/latest"]);
+});
+
+it("uses latest cache before upstream when dated cache is unavailable", async () => {
+  const calls: string[] = [];
+  const fetched = await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
+    calls.push(url);
+    if (url.endsWith("/2026-07-05.json")) throw new Error();
+    return puzzle;
+  });
+  expect(fetched.answer).toBe("SWAMI");
+  expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json"]);
+});
+
+it("ignores stale cached latest before falling back upstream", async () => {
+  const calls: string[] = [];
+  const stale = { ...puzzle, date: "2026-07-04" };
+  const fetched = await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
+    calls.push(url);
+    if (url.endsWith("/2026-07-05.json")) throw new Error();
+    if (url.endsWith("/latest.json")) return stale;
+    return puzzle;
+  });
+  expect(fetched.date).toBe(puzzle.date);
+  expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json", "https://api/answers/latest"]);
 });
 
 it("does not call upstream when cache has today's puzzle", async () => {
