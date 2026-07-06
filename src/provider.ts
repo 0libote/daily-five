@@ -2,6 +2,8 @@ import type { Puzzle } from "./types";
 
 type FetchJson = (url: string) => Promise<unknown>;
 
+const trimTrailingSlash = (value: string) => value.replace(/\/$/, "");
+
 function normalise(value: unknown, today: string): Puzzle {
   const raw = value as Record<string, unknown>;
   const answer = String(raw.answer ?? raw.word ?? "").toUpperCase();
@@ -29,13 +31,19 @@ export async function getPuzzle(
   apiBaseUrl: string,
   fetchJson: FetchJson
 ): Promise<Puzzle> {
-  try {
-    return normalise(await fetchJson(`${cacheBaseUrl.replace(/\/$/, "")}/${today}.json`), today);
-  } catch {
+  const cacheRoot = trimTrailingSlash(cacheBaseUrl);
+  const apiRoot = trimTrailingSlash(apiBaseUrl);
+  const candidates = [
+    `${cacheRoot}/${today}.json`,
+    `${cacheRoot}/latest.json`,
+    `${apiRoot}/answers/latest`
+  ];
+
+  for (const url of candidates) {
     try {
-      return normalise(await fetchJson(`${apiBaseUrl.replace(/\/$/, "")}/answers/latest`), today);
-    } catch {
-      throw new Error("Today's game isn't ready yet. Check back a little later.");
-    }
+      return normalise(await fetchJson(url), today);
+    } catch {}
   }
+
+  throw new Error("Today's game isn't ready yet. Check back a little later.");
 }
