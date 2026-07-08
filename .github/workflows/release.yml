@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, for example 0.2.2"
+        description: "Version to release, for example 0.2.4"
         required: true
         type: string
   push:
-    tags: ["v*"]
-    branches: ["release/v*"]
+    tags: ["[0-9]*"]
+    branches: ["release/*"]
 
 permissions:
   contents: write
@@ -33,7 +33,7 @@ jobs:
           RAW="${RAW#release/}"
           VERSION="${RAW#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: main
