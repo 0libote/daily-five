@@ -1,6 +1,7 @@
 export type LetterState = "absent" | "present" | "correct";
 export type GameStatus = "playing" | "won" | "lost";
 export type DailyNoteDisplay = "squares" | "words" | "both";
+export type PuzzleSource = "wordlehints.co.uk" | "daily-five-fallback";
 
 export interface Puzzle {
   date: string;
@@ -9,7 +10,7 @@ export interface Puzzle {
   answer: string;
   wordLength: 5;
   difficulty: number;
-  source: "wordlehints.co.uk";
+  source: PuzzleSource;
   generatedAt: string;
 }
 
@@ -59,4 +60,5 @@ export interface PluginData {
   settings: Settings;
   stats: Stats;
   game?: GameState;
+  puzzle?: Puzzle;
 }
