@@ -31,8 +31,10 @@ export default class DailyFivePlugin extends Plugin {
     this.data = {
       settings: { ...DEFAULT_SETTINGS, ...saved?.settings },
       stats: { ...emptyStats(), ...saved?.stats },
-      game: saved?.game
+      game: saved?.game,
+      puzzle: saved?.puzzle
     };
+    this.puzzle = this.data.puzzle;
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
@@ -46,10 +48,17 @@ export default class DailyFivePlugin extends Plugin {
   async ensurePuzzle() {
     const today = localDate();
     if (this.puzzle?.date === today) return this.puzzle;
+    if (this.data.puzzle?.date === today) {
+      this.puzzle = this.data.puzzle;
+      if (this.data.game?.date !== today) this.data.game = newGame(today);
+      await this.save();
+      return this.puzzle;
+    }
     this.puzzle = await getPuzzle(today, this.data.settings.cacheBaseUrl, this.data.settings.apiBaseUrl, async (url) => {
       const response = await requestUrl({ url });
       return response.json as unknown;
     });
+    this.data.puzzle = this.puzzle;
     if (this.data.game?.date !== today) this.data.game = newGame(today);
     await this.save();
     return this.puzzle;
