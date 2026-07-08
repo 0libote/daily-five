@@ -13,6 +13,7 @@ import type { GameState, PluginData, Puzzle, Settings, Stats } from "./types";
 import { isValidGuess } from "./words";
 
 const VIEW_TYPE = "daily-five-view";
+
 const DEFAULT_SETTINGS: Settings = {
   cacheBaseUrl: "https://raw.githubusercontent.com/0libote/daily-five/main/cache",
   apiBaseUrl: "https://wordlehints.co.uk/wp-json/wordlehint/v1",
@@ -39,6 +40,7 @@ export default class DailyFivePlugin extends Plugin {
     const backup = this.hasSavedProgress(saved) ? null : await this.readDataFile(savedSettings);
     const restoredFromBackup = this.hasSavedProgress(backup);
     const source = restoredFromBackup ? backup : saved;
+
     this.data = {
       settings: { ...DEFAULT_SETTINGS, ...source?.settings, ...saved?.settings },
       stats: { ...emptyStats(), ...source?.stats },
@@ -47,6 +49,7 @@ export default class DailyFivePlugin extends Plugin {
     };
     this.puzzle = this.data.puzzle;
     if (restoredFromBackup) void this.save();
+
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
     this.registerObsidianProtocolHandler("daily-five", () => void this.openGame());
     this.registerEvent(this.app.vault.on("create", (file) => this.scheduleDailyNoteSync(file)));
@@ -60,6 +63,7 @@ export default class DailyFivePlugin extends Plugin {
       this.scheduleDataFileWrite(1000);
       if (restoredFromBackup) new Notice("Daily Five restored data from the markdown backup note.");
     });
+
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
@@ -79,6 +83,7 @@ export default class DailyFivePlugin extends Plugin {
       await this.save();
       return this.puzzle;
     }
+
     this.puzzle = await getPuzzle(today, this.data.settings.cacheBaseUrl, this.data.settings.apiBaseUrl, async (url) => {
       const response = await requestUrl({ url });
       return response.json as unknown;
@@ -126,6 +131,7 @@ export default class DailyFivePlugin extends Plugin {
 
   async updateDailyNote(offerCreate = true, autoCreate = false) {
     if (!this.data.settings.dailyNotesEnabled) return void new Notice("Daily Note integration is disabled.");
+
     let puzzle: Puzzle;
     try {
       puzzle = await this.ensurePuzzle();
@@ -133,6 +139,7 @@ export default class DailyFivePlugin extends Plugin {
       if (offerCreate) new Notice(error instanceof Error ? error.message : "Today's puzzle is unavailable.");
       return;
     }
+
     const game = this.data.game ?? newGame(puzzle.date);
     const target = this.dailyNotePath();
     let file = this.app.vault.getAbstractFileByPath(target);
@@ -150,6 +157,7 @@ export default class DailyFivePlugin extends Plugin {
       if (offerCreate) new Notice("Daily Note was not found.");
       return;
     }
+
     this.updatingDailyNote = true;
     try {
       await this.app.vault.process(file, (content) => replaceResultBlock(
@@ -206,7 +214,9 @@ export default class DailyFivePlugin extends Plugin {
     try {
       const content = await this.app.vault.cachedRead(file);
       if (content.includes(PLACEHOLDER) || content.includes(START)) await this.updateDailyNote(false);
-    } catch {}
+    } catch {
+      return;
+    }
   }
 
   private async readDataFile(settings: Settings): Promise<Partial<PluginData> | null> {
@@ -274,10 +284,13 @@ export default class DailyFivePlugin extends Plugin {
 class DailyFiveView extends ItemView {
   private animateDraftIndex?: number;
   private revealGuessIndex?: number;
+
   constructor(leaf: WorkspaceLeaf, private plugin: DailyFivePlugin) { super(leaf); }
+
   getViewType() { return VIEW_TYPE; }
   getDisplayText() { return "Daily Five"; }
   getIcon() { return "dice"; }
+
   async onOpen() {
     this.registerDomEvent(this.containerEl.ownerDocument, "keydown", (event) => {
       if (this.containerEl.isShown()) this.handleKey(event.key);
@@ -296,6 +309,7 @@ class DailyFiveView extends ItemView {
     const statsButton = topbar.createEl("button", { cls: "daily-five__stats-button", text: "Stats" });
     statsButton.onclick = () => new StatsModal(this.app, this.plugin.data.stats).open();
     header.createEl("h1", { text: "Daily Five" });
+
     try {
       const puzzle = await this.plugin.ensurePuzzle();
       const game = this.plugin.data.game ?? newGame(puzzle.date);
@@ -325,8 +339,7 @@ class DailyFiveView extends ItemView {
         if (state) {
           tile.addClass(`is-${state}`);
           if (row === this.revealGuessIndex) tile.addClass("is-revealing");
-        }
-        else if (draft[column]) {
+        } else if (draft[column]) {
           tile.addClass("is-filled");
           if (column === this.animateDraftIndex) tile.addClass("is-typing");
         }
@@ -339,7 +352,7 @@ class DailyFiveView extends ItemView {
   drawKeyboard(root: HTMLElement) {
     const keyStates = keyboardStates(this.plugin.data.game?.guesses ?? []);
     const keyboard = root.createDiv({ cls: "daily-five__keyboard", attr: { "aria-label": "On-screen keyboard" } });
-    [["Q","W","E","R","T","Y","U","I","O","P"], ["A","S","D","F","G","H","J","K","L"], ["Enter","Z","X","C","V","B","N","M","Backspace"]].forEach((row) => {
+    [["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"], ["A", "S", "D", "F", "G", "H", "J", "K", "L"], ["Enter", "Z", "X", "C", "V", "B", "N", "M", "Backspace"]].forEach((row) => {
       const line = keyboard.createDiv({ cls: "daily-five__keyboard-row" });
       row.forEach((key) => {
         const isAction = key === "Enter" || key === "Backspace";
@@ -359,11 +372,11 @@ class DailyFiveView extends ItemView {
     const game = this.plugin.data.game;
     const answer = this.plugin.puzzle?.answer;
     if (!game || !answer || game.status !== "playing") return;
+
     if (key === "Backspace") {
       game.draft = game.draft.slice(0, -1);
       this.animateDraftIndex = undefined;
-    }
-    else if (key === "Enter") {
+    } else if (key === "Enter") {
       if (game.draft.length !== 5) return void new Notice("Enter five letters.");
       if (!isValidGuess(game.draft, answer)) {
         this.contentEl.addClass("is-rejected");
@@ -378,12 +391,14 @@ class DailyFiveView extends ItemView {
       game.draft += key.toUpperCase();
       this.animateDraftIndex = game.draft.length - 1;
     }
+
     void this.plugin.save().then(() => this.render());
   }
 }
 
 class StatsModal extends Modal {
   constructor(app: App, private stats: Stats) { super(app); }
+
   onOpen() {
     this.contentEl.createEl("h2", { text: "Lifetime stats" });
     const grid = this.contentEl.createDiv({ cls: "daily-five__stats" });
@@ -400,6 +415,7 @@ class StatsModal extends Modal {
 
 class DailyFiveSettings extends PluginSettingTab {
   constructor(app: App, private plugin: DailyFivePlugin) { super(app, plugin); }
+
   display() {
     const { containerEl } = this;
     containerEl.empty();
@@ -409,8 +425,8 @@ class DailyFiveSettings extends PluginSettingTab {
     new Setting(containerEl).setName("Daily Note integration")
       .setDesc("Keep today's game block updated in your Daily Note.")
       .addToggle((control) => control
-      .setValue(this.plugin.data.settings.dailyNotesEnabled)
-      .onChange((value) => this.set("dailyNotesEnabled", value)));
+        .setValue(this.plugin.data.settings.dailyNotesEnabled)
+        .onChange((value) => this.set("dailyNotesEnabled", value)));
     new Setting(containerEl).setName("Block placement")
       .setDesc("Add {{daily-five}} to your Daily Note template where the game block should appear. The placeholder is used on first insertion; later updates stay in that position. Without it, the block is appended to the note.")
       .addButton((button) => button.setButtonText("Copy placeholder").onClick(async () => {
@@ -468,10 +484,12 @@ class DailyFiveSettings extends PluginSettingTab {
         });
       });
   }
+
   text(name: string, description: string, key: "cacheBaseUrl" | "apiBaseUrl" | "dailyNoteFolder" | "dailyNoteDateFormat" | "dataFilePath") {
     new Setting(this.containerEl).setName(name).setDesc(description).addText((control) => control
       .setValue(this.plugin.data.settings[key]).onChange((value) => this.set(key, value.trim())));
   }
+
   async set<K extends keyof Settings>(key: K, value: Settings[K]) {
     this.plugin.data.settings[key] = value;
     await this.plugin.save();
