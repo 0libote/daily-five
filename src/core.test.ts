@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween, localDate } from "./date";
 import { replaceResultBlock, resultBlock } from "./daily-note";
+import { fallbackPuzzle } from "./fallback";
 import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
@@ -112,6 +113,15 @@ it("ignores stale cached latest before falling back upstream", async () => {
   expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json", "https://api/answers/latest"]);
 });
 
+it("keeps fallback source when today's cache contains a fallback puzzle", async () => {
+  const cached = fallbackPuzzle(puzzle.date, "2026-07-05T00:10:00Z");
+  const fetched = await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
+    if (url.endsWith("/2026-07-05.json")) return cached;
+    throw new Error("unexpected source");
+  });
+  expect(fetched).toMatchObject({ date: puzzle.date, source: "daily-five-fallback", answer: cached.answer });
+});
+
 it("does not call upstream when cache has today's puzzle", async () => {
   const calls: string[] = [];
   await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
@@ -121,10 +131,16 @@ it("does not call upstream when cache has today's puzzle", async () => {
   expect(calls).toEqual(["https://cache/2026-07-05.json"]);
 });
 
-it("reports when today's puzzle is not ready", async () => {
-  await expect(getPuzzle(puzzle.date, "https://cache", "https://api", async () => {
+it("uses a deterministic fallback when today's puzzle is not available remotely", async () => {
+  const calls: string[] = [];
+  const fetched = await getPuzzle("2026-07-08", "https://cache", "https://api", async (url) => {
+    calls.push(url);
     throw new Error("missing");
-  })).rejects.toThrow("Today's game isn't ready yet");
+  });
+  expect(calls).toEqual(["https://cache/2026-07-08.json", "https://cache/latest.json", "https://api/answers/latest"]);
+  expect(fetched).toMatchObject({ date: "2026-07-08", source: "daily-five-fallback", wordLength: 5 });
+  expect(fetched.answer).toMatch(/^[A-Z]{5}$/);
+  expect(fetched).toEqual(fallbackPuzzle("2026-07-08", fetched.generatedAt));
 });
 
 it("handles local and consecutive dates", () => {
