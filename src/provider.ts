@@ -43,7 +43,9 @@ export async function getPuzzle(
   for (const url of candidates) {
     try {
       return normalise(await fetchJson(url), today);
-    } catch {}
+    } catch {
+      continue;
+    }
   }
 
   return fallbackPuzzle(today);
