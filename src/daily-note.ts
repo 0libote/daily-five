@@ -4,28 +4,38 @@ import type { DailyNoteDisplay, GameState, Puzzle, Stats } from "./types";
 export const START = "<!-- daily-five:start -->";
 export const END = "<!-- daily-five:end -->";
 export const PLACEHOLDER = "{{daily-five}}";
+export const OPEN_PUZZLE_URI = "obsidian://daily-five";
 
-export function resultBlock(game: GameState, puzzle: Puzzle, stats: Stats, display: DailyNoteDisplay = "both"): string {
-  const result = game.status === "won"
-    ? `${game.guesses.length}/6`
-    : game.status === "lost"
-      ? "X/6"
-      : game.guesses.length
-        ? `In progress (${game.guesses.length}/6)`
-        : "Not started";
-  const rows = game.guesses.map((guess) => {
+const EMPTY_ROW = "⬜⬜⬜⬜⬜";
+
+function statusLabel(game: GameState): string {
+  if (game.status === "won") return `Solved in ${game.guesses.length}/6`;
+  if (game.status === "lost") return "Missed today";
+  if (game.guesses.length) return `In progress · ${game.guesses.length}/6`;
+  return "Not started";
+}
+
+function noteRows(game: GameState, display: DailyNoteDisplay): string[] {
+  const played = game.guesses.map((guess) => {
     const squares = emojiRow(guess.score);
     return display === "squares" ? squares : display === "words" ? guess.word : `${guess.word} ${squares}`;
   });
-  return `${START}
-## Daily Five
-Result: ${result}
-Difficulty: ${puzzle.difficulty} / 6
-Streak: ${stats.currentStreak}
-${game.status === "lost" ? `Answer: ${puzzle.answer}\n` : ""}
+  const emptyRows = Array.from({ length: Math.max(0, 6 - played.length) }, () => EMPTY_ROW);
+  return [...played, ...emptyRows];
+}
 
-${rows.join("\n")}
-${END}`;
+export function resultBlock(game: GameState, puzzle: Puzzle, stats: Stats, display: DailyNoteDisplay = "both"): string {
+  const lines = [
+    START,
+    `> [!tip]+ Today’s puzzle`,
+    `> **${statusLabel(game)}** · Difficulty **${puzzle.difficulty}/6** · Streak **${stats.currentStreak}**`,
+    `> [▶ Open Daily Five](${OPEN_PUZZLE_URI})`,
+    ...(game.status === "lost" ? [`> Answer: **${puzzle.answer}**`] : []),
+    `>`,
+    ...noteRows(game, display).map((row) => `> ${row}`),
+    END
+  ];
+  return lines.join("\n");
 }
 
 export function replaceResultBlock(content: string, block: string): string {
