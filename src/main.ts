@@ -4,7 +4,7 @@ import {
 } from "obsidian";
 import { createDailyNote } from "obsidian-daily-notes-interface";
 import { daysBetween, localDate } from "./date";
-import { PLACEHOLDER, replaceResultBlock, resultBlock } from "./daily-note";
+import { PLACEHOLDER, START, replaceResultBlock, resultBlock } from "./daily-note";
 import { keyboardStates, newGame, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult, winPercentage } from "./stats";
@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS: Settings = {
 export default class DailyFivePlugin extends Plugin {
   data: PluginData = { settings: DEFAULT_SETTINGS, stats: emptyStats() };
   puzzle?: Puzzle;
+  private dailyNoteSyncTimer?: number;
+  private updatingDailyNote = false;
 
   async onload() {
     const saved = await this.loadData() as Partial<PluginData> | null;
@@ -36,6 +38,13 @@ export default class DailyFivePlugin extends Plugin {
     };
     this.puzzle = this.data.puzzle;
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
+    this.registerObsidianProtocolHandler("daily-five", () => void this.openGame());
+    this.registerEvent(this.app.vault.on("create", (file) => this.scheduleDailyNoteSync(file)));
+    this.registerEvent(this.app.vault.on("modify", (file) => this.scheduleDailyNoteSync(file)));
+    this.register(() => {
+      if (this.dailyNoteSyncTimer) window.clearTimeout(this.dailyNoteSyncTimer);
+    });
+    this.app.workspace.onLayoutReady(() => this.scheduleDailyNoteSync());
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
@@ -124,11 +133,39 @@ export default class DailyFivePlugin extends Plugin {
       if (offerCreate) new Notice("Daily Note was not found.");
       return;
     }
-    await this.app.vault.process(file, (content) => replaceResultBlock(
-      content,
-      resultBlock(game, puzzle, this.data.stats, this.data.settings.dailyNoteDisplay)
-    ));
+    this.updatingDailyNote = true;
+    try {
+      await this.app.vault.process(file, (content) => replaceResultBlock(
+        content,
+        resultBlock(game, puzzle, this.data.stats, this.data.settings.dailyNoteDisplay)
+      ));
+    } finally {
+      this.updatingDailyNote = false;
+    }
     if (offerCreate) new Notice("Daily Five result updated.");
+  }
+
+  private scheduleDailyNoteSync(file?: unknown) {
+    if (!this.data.settings.dailyNotesEnabled || this.updatingDailyNote) return;
+    const target = file instanceof TFile ? file : this.app.vault.getAbstractFileByPath(this.dailyNotePath());
+    if (!(target instanceof TFile) || !this.isTodayDailyNote(target)) return;
+    if (this.dailyNoteSyncTimer) window.clearTimeout(this.dailyNoteSyncTimer);
+    this.dailyNoteSyncTimer = window.setTimeout(() => {
+      this.dailyNoteSyncTimer = undefined;
+      void this.syncDailyNoteIfPresent(target);
+    }, 350);
+  }
+
+  private async syncDailyNoteIfPresent(file: TFile) {
+    if (this.updatingDailyNote || !this.isTodayDailyNote(file)) return;
+    try {
+      const content = await this.app.vault.cachedRead(file);
+      if (content.includes(PLACEHOLDER) || content.includes(START)) await this.updateDailyNote(false);
+    } catch {}
+  }
+
+  private isTodayDailyNote(file: TFile) {
+    return file.extension === "md" && normalizePath(file.path) === this.dailyNotePath();
   }
 
   dailyNotePath() {
