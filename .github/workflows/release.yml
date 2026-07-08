@@ -1,8 +1,14 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, for example 0.2.2"
+        required: true
+        type: string
   push:
-    tags: ["*"]
+    tags: ["v*"]
     branches: ["release/v*"]
 
 permissions:
@@ -16,8 +22,14 @@ jobs:
     steps:
       - name: Resolve release version
         id: release
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          RAW="$GITHUB_REF_NAME"
+          if [ -n "$INPUT_VERSION" ]; then
+            RAW="$INPUT_VERSION"
+          else
+            RAW="$GITHUB_REF_NAME"
+          fi
           RAW="${RAW#release/}"
           VERSION="${RAW#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -30,17 +42,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Set version from tag
+      - name: Prepare release files
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           node -e 'const fs=require("fs"),p=require("./manifest.json"),v=require("./versions.json"); p.version=process.env.VERSION; v[p.version]=p.minAppVersion; fs.writeFileSync("manifest.json",JSON.stringify(p,null,2)+"\n"); fs.writeFileSync("versions.json",JSON.stringify(v,null,2)+"\n")'
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add package.json package-lock.json manifest.json versions.json
-          git diff --cached --quiet || git commit -m "chore: release v$VERSION"
-          git push origin main
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -51,7 +58,7 @@ jobs:
             main.js
             manifest.json
             styles.css
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
