@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { backupDataFromMarkdown, DATA_START, dataFileMarkdown } from "./data-file";
 import { daysBetween, localDate } from "./date";
 import { OPEN_PUZZLE_URI, replaceResultBlock, resultBlock } from "./daily-note";
 import { fallbackPuzzle } from "./fallback";
 import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
-import type { Puzzle } from "./types";
+import type { PluginData, Puzzle } from "./types";
 import { isValidGuess } from "./words";
 
 const puzzle: Puzzle = {
@@ -47,6 +48,35 @@ describe("stats", () => {
     const lost = { ...newGame(later.date), status: "lost" as const };
     expect(recordResult(second, lost, later)).toMatchObject({ gamesPlayed: 3, failures: 1, currentStreak: 0 });
   });
+});
+
+it("writes and restores a readable markdown data backup", () => {
+  const won = submitGuess(newGame(puzzle.date), puzzle.answer, "SWAMI");
+  const data: PluginData = {
+    settings: {
+      cacheBaseUrl: "https://cache",
+      apiBaseUrl: "https://api",
+      dailyNotesEnabled: true,
+      dailyNoteFolder: "",
+      dailyNoteDateFormat: "YYYY-MM-DD",
+      dailyNoteDisplay: "both",
+      highContrast: false,
+      dataFileEnabled: true,
+      dataFilePath: "Daily Five Data.md"
+    },
+    stats: recordResult(emptyStats(), won, puzzle),
+    game: won,
+    puzzle
+  };
+  const markdown = dataFileMarkdown(data, "2026-07-05T00:10:00Z");
+  expect(markdown).toContain("# Daily Five Data");
+  expect(markdown).toContain("## Lifetime stats");
+  expect(markdown).toContain(DATA_START);
+  expect(markdown).toContain("| 2026-07-05 | 1/6 | 4.8/6 |");
+  const restored = backupDataFromMarkdown(markdown);
+  expect(restored?.stats?.gamesPlayed).toBe(1);
+  expect(restored?.game?.status).toBe("won");
+  expect(restored?.puzzle?.answer).toBe("SWAMI");
 });
 
 it("replaces only the marked Daily Note block", () => {
