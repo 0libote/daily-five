@@ -16,7 +16,7 @@ function statusText(data: PluginData): string {
 
 function historyMarkdown(data: PluginData): string {
   const entries = Object.values(data.stats.history ?? {}).sort((a, b) => b.date.localeCompare(a.date));
-  if (!entries.length) return "| No games recorded yet | - | - | - |\n";
+  if (!entries.length) return "| No games recorded yet | - | - | - |";
   return entries.map((entry) => [
     escapeCell(entry.date),
     escapeCell(entry.won ? `${entry.guesses}/6` : "X/6"),
@@ -86,8 +86,10 @@ export function backupDataFromMarkdown(content: string): Partial<PluginData> | n
     .replace(/```$/i, "")
     .trim();
   try {
-    const parsed = JSON.parse(raw) as { data?: Partial<PluginData> } | Partial<PluginData>;
-    return "data" in parsed && parsed.data ? parsed.data : parsed as Partial<PluginData>;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const record = parsed as { data?: Partial<PluginData> } & Partial<PluginData>;
+    return record.data && typeof record.data === "object" ? record.data : record;
   } catch {
     return null;
   }
