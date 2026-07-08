@@ -100,28 +100,48 @@
   justify-content: center;
   margin-inline: auto;
   min-height: 0;
+  perspective: 900px;
+  transform-style: preserve-3d;
 }
 
 .daily-five__tile {
   align-items: center;
   aspect-ratio: 1;
+  backface-visibility: hidden;
   border: 2px solid var(--df-tile-border);
+  border-radius: 5px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .06);
   display: flex;
   font-size: clamp(1.05rem, min(4.5vw, 4.4vh), 2.1rem);
   font-weight: 750;
   justify-content: center;
   line-height: 1;
   min-width: 0;
+  overflow: hidden;
+  position: relative;
   text-transform: uppercase;
-  transition: border-color 120ms ease, background-color 180ms ease, transform 120ms ease;
+  transform-style: preserve-3d;
+  transition: border-color 120ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+  will-change: transform;
+}
+
+.daily-five__tile::after {
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, .36) 45%, transparent 65%);
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-120%);
 }
 
 .daily-five__tile.is-filled {
-  border-color: var(--text-muted);
-  transform: scale(1.025);
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+  transform: scale(1.035);
 }
 
-.daily-five__tile.is-typing { animation: daily-five-pop 120ms ease-out; }
+.daily-five__tile.is-typing { animation: daily-five-pop 165ms cubic-bezier(.2, 1.7, .45, 1); }
 
 .daily-five__tile.is-correct,
 .daily-five__tile.is-present,
@@ -135,13 +155,31 @@
 .daily-five__tile.is-absent { background: var(--df-absent); }
 
 .daily-five__tile.is-revealing {
-  animation: daily-five-reveal 480ms cubic-bezier(.2, .6, .3, 1) both;
+  --df-flip-delay: 0ms;
+  animation-delay: var(--df-flip-delay);
+  animation-duration: 650ms;
+  animation-fill-mode: both;
+  animation-name: daily-five-reveal;
+  animation-timing-function: cubic-bezier(.16, .84, .32, 1);
 }
 
-.daily-five__tile.is-revealing:nth-child(5n + 2) { animation-delay: 90ms; }
-.daily-five__tile.is-revealing:nth-child(5n + 3) { animation-delay: 180ms; }
-.daily-five__tile.is-revealing:nth-child(5n + 4) { animation-delay: 270ms; }
-.daily-five__tile.is-revealing:nth-child(5n + 5) { animation-delay: 360ms; }
+.daily-five__tile.is-revealing::after {
+  animation: daily-five-shine 650ms ease-out var(--df-flip-delay) both;
+}
+
+.daily-five__tile.is-revealing.is-correct {
+  animation-delay: var(--df-flip-delay), calc(var(--df-flip-delay) + 640ms);
+  animation-duration: 650ms, 460ms;
+  animation-fill-mode: both, both;
+  animation-name: daily-five-reveal, daily-five-success-bounce;
+  animation-timing-function: cubic-bezier(.16, .84, .32, 1), cubic-bezier(.18, 1.8, .35, 1);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--df-correct) 40%, transparent), 0 .3rem 1rem color-mix(in srgb, var(--df-correct) 28%, transparent);
+}
+
+.daily-five__tile.is-revealing:nth-child(5n + 2) { --df-flip-delay: 110ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 3) { --df-flip-delay: 220ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 4) { --df-flip-delay: 330ms; }
+.daily-five__tile.is-revealing:nth-child(5n + 5) { --df-flip-delay: 440ms; }
 
 .daily-five__message {
   flex: 0 0 auto;
@@ -171,8 +209,8 @@
   align-items: center;
   background: var(--df-key);
   border: 0;
-  border-radius: 4px;
-  box-shadow: none;
+  border-radius: 5px;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .12);
   color: var(--df-key-text);
   display: flex;
   flex: 1 1 0;
@@ -183,10 +221,12 @@
   justify-content: center;
   letter-spacing: .035em;
   min-width: 0;
+  overflow: hidden;
   padding: 0;
+  position: relative;
   text-transform: uppercase;
   touch-action: manipulation;
-  transition: background-color 140ms ease, color 140ms ease, transform 80ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease, color 140ms ease, transform 80ms ease;
 }
 
 .daily-five button.daily-five__key--wide {
@@ -195,8 +235,16 @@
   letter-spacing: 0;
 }
 
-.daily-five button.daily-five__key:hover { background: var(--background-modifier-border-hover); }
-.daily-five button.daily-five__key:active { transform: translateY(1px) scale(.98); }
+.daily-five button.daily-five__key:hover {
+  background: var(--background-modifier-border-hover);
+  transform: translateY(-1px);
+}
+
+.daily-five button.daily-five__key:active {
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, .16);
+  transform: translateY(1px) scale(.98);
+}
+
 .daily-five button.daily-five__key:focus-visible {
   box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent);
 }
@@ -204,6 +252,7 @@
 .daily-five button.daily-five__key.is-correct,
 .daily-five button.daily-five__key.is-present,
 .daily-five button.daily-five__key.is-absent {
+  animation: daily-five-key-pop 190ms ease-out both;
   color: white;
 }
 
@@ -249,24 +298,57 @@
 .daily-five__stats strong { color: var(--text-normal); font-size: 1.6rem; }
 
 @keyframes daily-five-reveal {
-  0% { transform: rotateX(0); }
-  45% { transform: rotateX(90deg); }
-  55% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0); }
+  0% { filter: brightness(1); transform: rotateX(0) scale(1); }
+  38% { filter: brightness(1.16); transform: rotateX(86deg) scale(.96); }
+  50% { filter: brightness(1.2); transform: rotateX(92deg) scale(.96); }
+  62% { filter: brightness(1.12); transform: rotateX(-16deg) scale(1.04); }
+  78% { transform: rotateX(8deg) scale(1.015); }
+  100% { filter: brightness(1); transform: rotateX(0) scale(1); }
 }
 
 @keyframes daily-five-pop {
-  0% { transform: scale(.82); }
-  70% { transform: scale(1.08); }
-  100% { transform: scale(1.025); }
+  0% { transform: scale(.72); }
+  65% { transform: scale(1.13); }
+  100% { transform: scale(1.035); }
+}
+
+@keyframes daily-five-success-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-.42rem) scale(1.08); }
+  70% { transform: translateY(.08rem) scale(.99); }
 }
 
 @keyframes daily-five-shake {
   0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-.45rem); }
-  40% { transform: translateX(.4rem); }
-  60% { transform: translateX(-.25rem); }
-  80% { transform: translateX(.15rem); }
+  12% { transform: translateX(-.55rem) rotate(-1deg); }
+  28% { transform: translateX(.5rem) rotate(1deg); }
+  44% { transform: translateX(-.38rem) rotate(-.8deg); }
+  60% { transform: translateX(.28rem) rotate(.6deg); }
+  76% { transform: translateX(-.16rem); }
+}
+
+@keyframes daily-five-board-rumble {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-.28rem); }
+  36% { transform: translateX(.26rem); }
+  54% { transform: translateX(-.16rem); }
+  72% { transform: translateX(.1rem); }
+}
+
+@keyframes daily-five-shine {
+  0%, 45% { opacity: 0; transform: translateX(-120%); }
+  58% { opacity: .85; }
+  100% { opacity: 0; transform: translateX(120%); }
+}
+
+@keyframes daily-five-key-pop {
+  0% { transform: scale(.92); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.daily-five.is-rejected .daily-five__board {
+  animation: daily-five-board-rumble 340ms ease-in-out;
 }
 
 .daily-five.is-rejected .daily-five__tile.is-current {
@@ -274,10 +356,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .daily-five__board,
   .daily-five__tile,
   .daily-five button.daily-five__key,
+  .daily-five__tile::after,
   .daily-five__tile.is-revealing,
+  .daily-five__tile.is-revealing.is-correct,
   .daily-five__tile.is-typing,
+  .daily-five button.daily-five__key.is-correct,
+  .daily-five button.daily-five__key.is-present,
+  .daily-five button.daily-five__key.is-absent,
   .daily-five.is-rejected .daily-five__tile.is-current {
     animation: none;
     transition: none;
