@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysBetween, localDate } from "./date";
-import { replaceResultBlock, resultBlock } from "./daily-note";
+import { OPEN_PUZZLE_URI, replaceResultBlock, resultBlock } from "./daily-note";
 import { fallbackPuzzle } from "./fallback";
 import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
@@ -55,17 +55,26 @@ it("replaces only the marked Daily Note block", () => {
 });
 
 it("inserts the Daily Note block at the template placeholder", () => {
-  expect(replaceResultBlock("# Morning\n\n{{daily-five}}\n\n## Notes", "BLOCK"))
-    .toBe("# Morning\n\nBLOCK\n\n## Notes");
+  expect(replaceResultBlock("# Wordle\n\n{{daily-five}}\n\n## Notes", "BLOCK"))
+    .toBe("# Wordle\n\nBLOCK\n\n## Notes");
 });
 
-it("renders not-started and in-progress Daily Note states", () => {
+it("renders a compact Daily Note block without adding a duplicate heading", () => {
+  const block = resultBlock(newGame(puzzle.date), puzzle, emptyStats());
+  expect(block).toContain("[!tip]+ Today’s puzzle");
+  expect(block).toContain("**Not started**");
+  expect(block).toContain(`](${OPEN_PUZZLE_URI})`);
+  expect(block).not.toContain("## Daily Five");
+  expect(block.match(/⬜⬜⬜⬜⬜/g)).toHaveLength(6);
+});
+
+it("renders in-progress Daily Note states", () => {
   const stats = emptyStats();
-  expect(resultBlock(newGame(puzzle.date), puzzle, stats)).toContain("Result: Not started");
   const started = submitGuess(newGame(puzzle.date), puzzle.answer, "CRANE");
-  expect(resultBlock(started, puzzle, stats)).toContain("Result: In progress (1/6)");
-  expect(resultBlock(started, puzzle, stats)).toContain("CRANE ⬛⬛🟩⬛⬛");
-  expect(resultBlock(started, puzzle, stats)).toContain("⬛⬛🟩⬛⬛");
+  const block = resultBlock(started, puzzle, stats);
+  expect(block).toContain("**In progress · 1/6**");
+  expect(block).toContain("> CRANE ⬛⬛🟩⬛⬛");
+  expect(block).toContain("⬜⬜⬜⬜⬜");
 });
 
 it("supports word-only notes and reveals the answer after a loss", () => {
@@ -73,8 +82,8 @@ it("supports word-only notes and reveals the answer after a loss", () => {
     { word: "CRANE", score: scoreGuess("CRANE", puzzle.answer) }
   ] };
   const block = resultBlock(lost, puzzle, emptyStats(), "words");
-  expect(block).toContain("Answer: SWAMI");
-  expect(block).toContain("\nCRANE\n");
+  expect(block).toContain("Answer: **SWAMI**");
+  expect(block).toContain("\n> CRANE\n");
   expect(block).not.toContain("⬛");
 });
 
