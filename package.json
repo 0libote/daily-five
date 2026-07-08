@@ -1,6 +1,6 @@
 {
   "name": "daily-five",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "scripts": {
     "build": "node esbuild.config.mjs production",
