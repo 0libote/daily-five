@@ -1,3 +1,7 @@
+.workspace-leaf-content[data-type="daily-five-view"] .view-content {
+  overflow: hidden;
+}
+
 .daily-five {
   --df-correct: #538d4e;
   --df-present: #b59f3b;
@@ -5,15 +9,29 @@
   --df-key: #d3d6da;
   --df-key-text: #111;
   --df-tile-border: var(--background-modifier-border-hover);
+  --df-tile-size: min(4.1rem, 13vw, 7.1vh);
+  --df-key-height: clamp(2.1rem, 5.8vh, 3.15rem);
   box-sizing: border-box;
+  container-type: size;
   display: flex;
   flex-direction: column;
   font-family: var(--font-interface);
+  height: 100%;
+  justify-content: space-between;
   margin: 0 auto;
-  max-width: 42rem;
-  min-height: 100%;
-  padding: clamp(1.25rem, 4vh, 2.5rem) clamp(.75rem, 3vw, 1.5rem) 2rem;
+  max-height: 100%;
+  max-width: min(44rem, 100%);
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(.65rem, 2.2vh, 1.25rem) clamp(.45rem, 2vw, 1.25rem);
   text-align: center;
+}
+
+@supports (height: 1cqh) {
+  .daily-five {
+    --df-tile-size: min(4.1rem, 13cqw, 7.6cqh);
+    --df-key-height: clamp(2rem, 6.2cqh, 3.15rem);
+  }
 }
 
 .daily-five--contrast {
@@ -21,25 +39,32 @@
   --df-present: #85c0f9;
 }
 
-.daily-five__header { margin-bottom: clamp(1.25rem, 3vh, 2rem); }
 .theme-dark .daily-five {
   --df-absent: #3a3a3c;
   --df-key: #818384;
   --df-key-text: #fff;
 }
+
+.daily-five__header {
+  flex: 0 0 auto;
+  margin-bottom: clamp(.45rem, 1.4vh, .9rem);
+}
+
 .daily-five__topbar {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  min-height: 1.8rem;
+  min-height: 1.35rem;
 }
+
 .daily-five__eyebrow {
   color: var(--text-muted);
-  font-size: .68rem;
+  font-size: clamp(.58rem, 1.4vh, .68rem);
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
 }
+
 .daily-five button.daily-five__stats-button {
   background: transparent;
   border: 0;
@@ -48,78 +73,100 @@
   font-size: var(--font-ui-smaller);
   font-weight: 650;
   height: auto;
-  padding: .25rem .1rem;
+  padding: .15rem .1rem;
 }
+
 .daily-five button.daily-five__stats-button:hover { color: var(--text-normal); }
 .daily-five button.daily-five__stats-button:active { transform: translateY(1px); }
+
 .daily-five h1 {
-  font-size: clamp(2.1rem, 7vw, 3.4rem);
+  font-size: clamp(1.75rem, min(6vw, 6.6vh), 3.35rem);
   letter-spacing: -.045em;
-  line-height: 1;
-  margin: 0 0 .55rem;
+  line-height: .95;
+  margin: 0 0 clamp(.25rem, .8vh, .45rem);
 }
+
 .daily-five__meta {
   color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: clamp(.72rem, 1.8vh, var(--font-ui-smaller));
   font-variant-numeric: tabular-nums;
 }
+
 .daily-five__board {
   display: grid;
-  gap: clamp(.3rem, .8vw, .5rem);
-  grid-template-columns: repeat(5, minmax(2.5rem, 4.25rem));
+  flex: 0 1 auto;
+  gap: clamp(.18rem, .8vh, .42rem);
+  grid-template-columns: repeat(5, var(--df-tile-size));
   justify-content: center;
+  margin-inline: auto;
+  min-height: 0;
 }
+
 .daily-five__tile {
   align-items: center;
   aspect-ratio: 1;
   border: 2px solid var(--df-tile-border);
   display: flex;
-  font-size: clamp(1.45rem, 5vw, 2.25rem);
+  font-size: clamp(1.05rem, min(4.5vw, 4.4vh), 2.1rem);
   font-weight: 750;
   justify-content: center;
   line-height: 1;
+  min-width: 0;
   text-transform: uppercase;
   transition: border-color 120ms ease, background-color 180ms ease, transform 120ms ease;
 }
+
 .daily-five__tile.is-filled {
   border-color: var(--text-muted);
   transform: scale(1.025);
 }
+
 .daily-five__tile.is-typing { animation: daily-five-pop 120ms ease-out; }
+
 .daily-five__tile.is-correct,
 .daily-five__tile.is-present,
 .daily-five__tile.is-absent {
   border-color: transparent;
   color: white;
 }
+
 .daily-five__tile.is-correct { background: var(--df-correct); }
 .daily-five__tile.is-present { background: var(--df-present); color: #111; }
 .daily-five__tile.is-absent { background: var(--df-absent); }
+
 .daily-five__tile.is-revealing {
   animation: daily-five-reveal 480ms cubic-bezier(.2, .6, .3, 1) both;
 }
+
 .daily-five__tile.is-revealing:nth-child(5n + 2) { animation-delay: 90ms; }
 .daily-five__tile.is-revealing:nth-child(5n + 3) { animation-delay: 180ms; }
 .daily-five__tile.is-revealing:nth-child(5n + 4) { animation-delay: 270ms; }
 .daily-five__tile.is-revealing:nth-child(5n + 5) { animation-delay: 360ms; }
+
 .daily-five__message {
-  font-size: var(--font-ui-small);
+  flex: 0 0 auto;
+  font-size: clamp(.78rem, 1.9vh, var(--font-ui-small));
   font-weight: 600;
-  min-height: 1.4rem;
-  margin: clamp(.8rem, 2vh, 1.25rem) 0;
+  min-height: 1.15rem;
+  margin: clamp(.35rem, 1.2vh, .75rem) 0;
 }
+
 .daily-five__keyboard {
   display: grid;
-  gap: .38rem;
+  flex: 0 1 auto;
+  gap: clamp(.18rem, .7vh, .34rem);
   margin-inline: auto;
   max-width: 40rem;
+  min-height: 0;
   width: 100%;
 }
+
 .daily-five__keyboard-row {
   display: flex;
-  gap: .3rem;
+  gap: clamp(.12rem, .65vw, .3rem);
   justify-content: center;
 }
+
 .daily-five button.daily-five__key {
   align-items: center;
   background: var(--df-key);
@@ -130,9 +177,9 @@
   display: flex;
   flex: 1 1 0;
   font-family: var(--font-interface);
-  font-size: .76rem;
+  font-size: clamp(.58rem, min(2.1vw, 1.8vh), .76rem);
   font-weight: 750;
-  height: clamp(3.15rem, 7vh, 3.8rem);
+  height: var(--df-key-height);
   justify-content: center;
   letter-spacing: .035em;
   min-width: 0;
@@ -141,54 +188,64 @@
   touch-action: manipulation;
   transition: background-color 140ms ease, color 140ms ease, transform 80ms ease;
 }
+
 .daily-five button.daily-five__key--wide {
   flex: 1.45 1 0;
-  font-size: .62rem;
+  font-size: clamp(.5rem, min(1.8vw, 1.6vh), .62rem);
   letter-spacing: 0;
 }
+
 .daily-five button.daily-five__key:hover { background: var(--background-modifier-border-hover); }
 .daily-five button.daily-five__key:active { transform: translateY(1px) scale(.98); }
 .daily-five button.daily-five__key:focus-visible {
   box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--interactive-accent);
 }
+
 .daily-five button.daily-five__key.is-correct,
 .daily-five button.daily-five__key.is-present,
 .daily-five button.daily-five__key.is-absent {
   color: white;
 }
+
 .daily-five button.daily-five__key.is-correct { background: var(--df-correct); }
 .daily-five button.daily-five__key.is-present { background: var(--df-present); color: #111; }
 .daily-five button.daily-five__key.is-absent { background: var(--df-absent); }
 .daily-five button.daily-five__key.is-correct:hover { background: var(--df-correct); }
 .daily-five button.daily-five__key.is-present:hover { background: var(--df-present); }
 .daily-five button.daily-five__key.is-absent:hover { background: var(--df-absent); }
+
 .daily-five__empty {
   align-self: center;
-  margin: clamp(3rem, 12vh, 7rem) auto 0;
+  margin: clamp(2rem, 10vh, 5rem) auto 0;
   max-width: 22rem;
 }
+
 .daily-five__empty h2 {
   font-size: 1.45rem;
   letter-spacing: -.02em;
   margin: 0 0 .5rem;
 }
+
 .daily-five__empty p {
   color: var(--text-muted);
   line-height: 1.55;
   margin: 0 0 1.25rem;
 }
+
 .daily-five__stats {
   display: grid;
   gap: .5rem;
   grid-template-columns: repeat(5, 1fr);
   text-align: center;
 }
+
 .daily-five__stats div {
   color: var(--text-muted);
   display: flex;
   flex-direction: column;
   font-size: var(--font-ui-smaller);
 }
+
 .daily-five__stats strong { color: var(--text-normal); font-size: 1.6rem; }
 
 @keyframes daily-five-reveal {
@@ -227,15 +284,14 @@
   }
 }
 
-@media (max-width: 400px) {
-  .daily-five { padding: .85rem .35rem 1.25rem; }
-  .daily-five__header { margin-bottom: .85rem; }
-  .daily-five__board {
-    gap: .24rem;
-    grid-template-columns: repeat(5, minmax(2.35rem, 3.15rem));
+@media (max-width: 400px), (max-height: 620px) {
+  .daily-five {
+    --df-tile-size: min(3.3rem, 17vw, 6.7vh);
+    --df-key-height: clamp(1.85rem, 5.4vh, 2.65rem);
+    padding: .5rem .3rem;
   }
-  .daily-five__message { margin: .65rem 0; }
-  .daily-five__keyboard { gap: .3rem; }
-  .daily-five__keyboard-row { gap: .2rem; }
-  .daily-five button.daily-five__key { height: 2.85rem; }
+  .daily-five__header { margin-bottom: .35rem; }
+  .daily-five__topbar { min-height: 1.1rem; }
+  .daily-five h1 { font-size: clamp(1.55rem, min(7vw, 5.8vh), 2.4rem); }
+  .daily-five__message { margin: .3rem 0; }
 }
