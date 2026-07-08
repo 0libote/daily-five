@@ -16,13 +16,15 @@ Open the game from its ribbon icon or run **Daily Five: Open today's puzzle**. T
 
 Daily Five updates today's note automatically after each accepted guess. It uses the core Daily Notes folder and date format when available; otherwise, configure the two fallback fields in settings. You can show coloured squares, guessed words, or both. Failed games include the answer.
 
-Put `{{daily-five}}` in your Daily Note template where you want the game block to appear. If the placeholder is absent, the block is appended to the note.
+Put `{{daily-five}}` in your Daily Note template where the game block should appear. If the placeholder is absent, the block is appended to the note.
 
 Only content between `<!-- daily-five:start -->` and `<!-- daily-five:end -->` is replaced. If today's note is missing, Daily Five asks before creating it.
 
 ## Puzzle cache
 
-The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today's file is missing or unavailable, it requests the [WordleHints.co.uk API](https://wordlehints.co.uk/). A daily GitHub Action updates `cache/index.json`, `cache/latest.json`, and the dated file. There is no source-mode switch: cache first, API fallback is always used.
+The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today's file is missing or unavailable, it requests `cache/latest.json`, then the [WordleHints.co.uk API](https://wordlehints.co.uk/). A daily GitHub Action updates `cache/index.json`, `cache/latest.json`, and the dated file.
+
+If every remote source is missing, stale, or invalid, Daily Five generates a deterministic local fallback puzzle for that date. The chosen puzzle is saved in local plugin data for the day so the answer does not change if a remote cache appears later.
 
 ## Privacy
 
