@@ -91,11 +91,12 @@ it("inserts the Daily Note block at the template placeholder", () => {
 
 it("renders a compact Daily Note block without adding a duplicate heading", () => {
   const block = resultBlock(newGame(puzzle.date), puzzle, emptyStats());
-  expect(block).toContain("[!tip]+ Today’s puzzle");
+  expect(block).toContain("[!note]+ Today’s puzzle");
   expect(block).toContain("**Not started**");
   expect(block).toContain(`](${OPEN_PUZZLE_URI})`);
   expect(block).not.toContain("## Daily Five");
-  expect(block.match(/⬜⬜⬜⬜⬜/g)).toHaveLength(6);
+  expect(block).toContain("> _No guesses yet._");
+  expect(block).not.toContain("⬜⬜⬜⬜⬜");
 });
 
 it("renders in-progress Daily Note states", () => {
@@ -103,8 +104,8 @@ it("renders in-progress Daily Note states", () => {
   const started = submitGuess(newGame(puzzle.date), puzzle.answer, "CRANE");
   const block = resultBlock(started, puzzle, stats);
   expect(block).toContain("**In progress · 1/6**");
-  expect(block).toContain("> CRANE ⬛⬛🟩⬛⬛");
-  expect(block).toContain("⬜⬜⬜⬜⬜");
+  expect(block).toContain("> `CRANE` ⬛⬛🟩⬛⬛");
+  expect(block).not.toContain("⬜⬜⬜⬜⬜");
 });
 
 it("supports word-only notes and reveals the answer after a loss", () => {
@@ -113,7 +114,7 @@ it("supports word-only notes and reveals the answer after a loss", () => {
   ] };
   const block = resultBlock(lost, puzzle, emptyStats(), "words");
   expect(block).toContain("Answer: **SWAMI**");
-  expect(block).toContain("\n> CRANE\n");
+  expect(block).toContain("\n> `CRANE`\n");
   expect(block).not.toContain("⬛");
 });
 

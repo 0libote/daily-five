@@ -6,8 +6,6 @@ export const END = "<!-- daily-five:end -->";
 export const PLACEHOLDER = "{{daily-five}}";
 export const OPEN_PUZZLE_URI = "obsidian://daily-five";
 
-const EMPTY_ROW = "⬜⬜⬜⬜⬜";
-
 function statusLabel(game: GameState): string {
   if (game.status === "won") return `Solved in ${game.guesses.length}/6`;
   if (game.status === "lost") return "Missed today";
@@ -16,23 +14,24 @@ function statusLabel(game: GameState): string {
 }
 
 function noteRows(game: GameState, display: DailyNoteDisplay): string[] {
-  const played = game.guesses.map((guess) => {
+  if (!game.guesses.length) return ["> _No guesses yet._"];
+  return game.guesses.map((guess) => {
     const squares = emojiRow(guess.score);
-    return display === "squares" ? squares : display === "words" ? guess.word : `${guess.word} ${squares}`;
+    const word = `\`${guess.word}\``;
+    const row = display === "squares" ? squares : display === "words" ? word : `${word} ${squares}`;
+    return `> ${row}`;
   });
-  const emptyRows = Array.from({ length: Math.max(0, 6 - played.length) }, () => EMPTY_ROW);
-  return [...played, ...emptyRows];
 }
 
 export function resultBlock(game: GameState, puzzle: Puzzle, stats: Stats, display: DailyNoteDisplay = "both"): string {
   const lines = [
     START,
-    `> [!tip]+ Today’s puzzle`,
+    `> [!note]+ Today’s puzzle`,
     `> **${statusLabel(game)}** · Difficulty **${puzzle.difficulty}/6** · Streak **${stats.currentStreak}**`,
-    `> [▶ Open Daily Five](${OPEN_PUZZLE_URI})`,
+    `> [Open Daily Five](${OPEN_PUZZLE_URI})`,
     ...(game.status === "lost" ? [`> Answer: **${puzzle.answer}**`] : []),
     `>`,
-    ...noteRows(game, display).map((row) => `> ${row}`),
+    ...noteRows(game, display),
     END
   ];
   return lines.join("\n");
