@@ -3,6 +3,7 @@ import {
   WorkspaceLeaf, moment, normalizePath, requestUrl
 } from "obsidian";
 import { createDailyNote } from "obsidian-daily-notes-interface";
+import { backupDataFromMarkdown, dataFileMarkdown, DEFAULT_DATA_FILE_PATH } from "./data-file";
 import { daysBetween, localDate } from "./date";
 import { PLACEHOLDER, START, replaceResultBlock, resultBlock } from "./daily-note";
 import { keyboardStates, newGame, submitGuess } from "./game";
@@ -19,38 +20,53 @@ const DEFAULT_SETTINGS: Settings = {
   dailyNoteFolder: "",
   dailyNoteDateFormat: "YYYY-MM-DD",
   dailyNoteDisplay: "both",
-  highContrast: false
+  highContrast: false,
+  dataFileEnabled: true,
+  dataFilePath: DEFAULT_DATA_FILE_PATH
 };
 
 export default class DailyFivePlugin extends Plugin {
   data: PluginData = { settings: DEFAULT_SETTINGS, stats: emptyStats() };
   puzzle?: Puzzle;
   private dailyNoteSyncTimer?: number;
+  private dataFileWriteTimer?: number;
   private updatingDailyNote = false;
+  private writingDataFile = false;
 
   async onload() {
     const saved = await this.loadData() as Partial<PluginData> | null;
+    const savedSettings = { ...DEFAULT_SETTINGS, ...saved?.settings };
+    const backup = this.hasSavedProgress(saved) ? null : await this.readDataFile(savedSettings);
+    const restoredFromBackup = this.hasSavedProgress(backup);
+    const source = restoredFromBackup ? backup : saved;
     this.data = {
-      settings: { ...DEFAULT_SETTINGS, ...saved?.settings },
-      stats: { ...emptyStats(), ...saved?.stats },
-      game: saved?.game,
-      puzzle: saved?.puzzle
+      settings: { ...DEFAULT_SETTINGS, ...source?.settings, ...saved?.settings },
+      stats: { ...emptyStats(), ...source?.stats },
+      game: source?.game,
+      puzzle: source?.puzzle
     };
     this.puzzle = this.data.puzzle;
+    if (restoredFromBackup) void this.save();
     this.registerView(VIEW_TYPE, (leaf) => new DailyFiveView(leaf, this));
     this.registerObsidianProtocolHandler("daily-five", () => void this.openGame());
     this.registerEvent(this.app.vault.on("create", (file) => this.scheduleDailyNoteSync(file)));
     this.registerEvent(this.app.vault.on("modify", (file) => this.scheduleDailyNoteSync(file)));
     this.register(() => {
       if (this.dailyNoteSyncTimer) window.clearTimeout(this.dailyNoteSyncTimer);
+      if (this.dataFileWriteTimer) window.clearTimeout(this.dataFileWriteTimer);
     });
-    this.app.workspace.onLayoutReady(() => this.scheduleDailyNoteSync());
+    this.app.workspace.onLayoutReady(() => {
+      this.scheduleDailyNoteSync();
+      this.scheduleDataFileWrite(1000);
+      if (restoredFromBackup) new Notice("Daily Five restored data from the markdown backup note.");
+    });
     this.addRibbonIcon("dice", "Open today's Daily Five", () => void this.openGame());
     this.addCommand({ id: "open-todays-puzzle", name: "Open today's puzzle", callback: () => void this.openGame() });
     this.addCommand({ id: "insert-daily-note-result", name: "Insert or update today's result in daily note", callback: () => void this.updateDailyNote() });
     this.addCommand({ id: "show-lifetime-stats", name: "Show lifetime stats", callback: () => new StatsModal(this.app, this.data.stats).open() });
     this.addCommand({ id: "export-stats-markdown", name: "Export stats as markdown", callback: () => void this.exportStats() });
     this.addCommand({ id: "reset-todays-puzzle", name: "Reset today's puzzle", callback: () => void this.resetToday() });
+    this.addCommand({ id: "write-data-backup", name: "Write readable data backup note", callback: () => void this.writeDataFile(true) });
     this.addSettingTab(new DailyFiveSettings(this.app, this));
   }
 
@@ -85,6 +101,7 @@ export default class DailyFivePlugin extends Plugin {
 
   async save() {
     await this.saveData(this.data);
+    this.scheduleDataFileWrite();
   }
 
   async finish(game: GameState) {
@@ -145,6 +162,25 @@ export default class DailyFivePlugin extends Plugin {
     if (offerCreate) new Notice("Daily Five result updated.");
   }
 
+  async writeDataFile(offerNotice = false) {
+    if (!this.data.settings.dataFileEnabled || this.writingDataFile) return;
+    const path = this.dataFilePath();
+    const content = dataFileMarkdown(this.data);
+    this.writingDataFile = true;
+    try {
+      await this.ensureParentFolder(path);
+      const existing = this.app.vault.getAbstractFileByPath(path);
+      if (existing instanceof TFile) await this.app.vault.modify(existing, content);
+      else if (!existing) await this.app.vault.create(path, content);
+      else throw new Error(`${path} is not a markdown file.`);
+      if (offerNotice) new Notice(`Daily Five data backup updated: ${path}`);
+    } catch (error) {
+      if (offerNotice) new Notice(error instanceof Error ? error.message : "Could not update Daily Five data backup.");
+    } finally {
+      this.writingDataFile = false;
+    }
+  }
+
   private scheduleDailyNoteSync(file?: unknown) {
     if (!this.data.settings.dailyNotesEnabled || this.updatingDailyNote) return;
     const target = file instanceof TFile ? file : this.app.vault.getAbstractFileByPath(this.dailyNotePath());
@@ -156,12 +192,48 @@ export default class DailyFivePlugin extends Plugin {
     }, 350);
   }
 
+  private scheduleDataFileWrite(delay = 700) {
+    if (!this.data.settings.dataFileEnabled) return;
+    if (this.dataFileWriteTimer) window.clearTimeout(this.dataFileWriteTimer);
+    this.dataFileWriteTimer = window.setTimeout(() => {
+      this.dataFileWriteTimer = undefined;
+      void this.writeDataFile();
+    }, delay);
+  }
+
   private async syncDailyNoteIfPresent(file: TFile) {
     if (this.updatingDailyNote || !this.isTodayDailyNote(file)) return;
     try {
       const content = await this.app.vault.cachedRead(file);
       if (content.includes(PLACEHOLDER) || content.includes(START)) await this.updateDailyNote(false);
     } catch {}
+  }
+
+  private async readDataFile(settings: Settings): Promise<Partial<PluginData> | null> {
+    if (!settings.dataFileEnabled) return null;
+    const file = this.app.vault.getAbstractFileByPath(this.dataFilePath(settings));
+    if (!(file instanceof TFile)) return null;
+    try {
+      return backupDataFromMarkdown(await this.app.vault.cachedRead(file));
+    } catch {
+      return null;
+    }
+  }
+
+  private hasSavedProgress(data: Partial<PluginData> | null | undefined) {
+    const history = data?.stats?.history;
+    return Boolean(data?.game || data?.puzzle || data?.stats?.gamesPlayed || history && Object.keys(history).length);
+  }
+
+  private dataFilePath(settings: Settings = this.data.settings) {
+    return normalizePath((settings.dataFilePath || DEFAULT_DATA_FILE_PATH).trim() || DEFAULT_DATA_FILE_PATH);
+  }
+
+  private async ensureParentFolder(path: string) {
+    const slash = path.lastIndexOf("/");
+    if (slash <= 0) return;
+    const folder = path.slice(0, slash);
+    if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
   }
 
   private isTodayDailyNote(file: TFile) {
@@ -365,6 +437,20 @@ class DailyFiveSettings extends PluginSettingTab {
         }));
     this.text("Fallback Daily Note folder", "Used when the Daily Notes core plugin is unavailable.", "dailyNoteFolder");
     this.text("Fallback date format", "Moment format used for the note filename.", "dailyNoteDateFormat");
+    new Setting(containerEl).setName("Data backup").setHeading();
+    new Setting(containerEl).setName("Markdown data backup")
+      .setDesc("Keep a readable backup note in your vault so stats and progress survive if plugin storage is lost.")
+      .addToggle((control) => control
+        .setValue(this.plugin.data.settings.dataFileEnabled)
+        .onChange(async (value) => {
+          await this.set("dataFileEnabled", value);
+          if (value) await this.plugin.writeDataFile(true);
+        }));
+    this.text("Backup note path", "The markdown note Daily Five keeps updated with readable stats and restore data.", "dataFilePath");
+    new Setting(containerEl).setName("Update backup now")
+      .setDesc("Rewrite the readable markdown backup note immediately.")
+      .addButton((button) => button.setButtonText("Update").onClick(() => void this.plugin.writeDataFile(true)));
+    new Setting(containerEl).setName("Appearance").setHeading();
     new Setting(containerEl).setName("High contrast mode").addToggle((control) => control
       .setValue(this.plugin.data.settings.highContrast)
       .onChange((value) => this.set("highContrast", value)));
@@ -382,7 +468,7 @@ class DailyFiveSettings extends PluginSettingTab {
         });
       });
   }
-  text(name: string, description: string, key: "cacheBaseUrl" | "apiBaseUrl" | "dailyNoteFolder" | "dailyNoteDateFormat") {
+  text(name: string, description: string, key: "cacheBaseUrl" | "apiBaseUrl" | "dailyNoteFolder" | "dailyNoteDateFormat" | "dataFilePath") {
     new Setting(this.containerEl).setName(name).setDesc(description).addText((control) => control
       .setValue(this.plugin.data.settings[key]).onChange((value) => this.set(key, value.trim())));
   }
