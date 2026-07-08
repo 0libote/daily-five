@@ -47,7 +47,44 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           npm version "$VERSION" --no-git-tag-version --allow-same-version
-          node -e 'const fs=require("fs"),p=require("./manifest.json"),v=require("./versions.json"); p.version=process.env.VERSION; v[p.version]=p.minAppVersion; fs.writeFileSync("manifest.json",JSON.stringify(p,null,2)+"\n"); fs.writeFileSync("versions.json",JSON.stringify(v,null,2)+"\n")'
+          node - <<'NODE'
+          const fs = require("fs");
+          const version = process.env.VERSION;
+          const manifest = require("./manifest.json");
+          const versions = require("./versions.json");
+          manifest.version = version;
+          versions[version] = manifest.minAppVersion;
+          fs.writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
+          fs.writeFileSync("versions.json", `${JSON.stringify(versions, null, 2)}\n`);
+          NODE
+      - name: Verify release version files
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const version = process.env.VERSION;
+          const files = {
+            "package.json": JSON.parse(fs.readFileSync("package.json", "utf8")),
+            "package-lock.json": JSON.parse(fs.readFileSync("package-lock.json", "utf8")),
+            "manifest.json": JSON.parse(fs.readFileSync("manifest.json", "utf8")),
+            "versions.json": JSON.parse(fs.readFileSync("versions.json", "utf8"))
+          };
+          const checks = [
+            ["package.json version", files["package.json"].version === version],
+            ["package-lock.json version", files["package-lock.json"].version === version],
+            ["package-lock root package version", files["package-lock.json"].packages?.[""]?.version === version],
+            ["manifest.json version", files["manifest.json"].version === version],
+            ["versions.json entry", files["versions.json"][version] === files["manifest.json"].minAppVersion]
+          ];
+          const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
+          if (failed.length) {
+            console.error(`Release version file check failed for ${version}:`);
+            for (const name of failed) console.error(`- ${name}`);
+            process.exit(1);
+          }
+          console.log(`Release version files verified for ${version}.`);
+          NODE
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
