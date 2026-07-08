@@ -20,6 +20,12 @@ Put `{{daily-five}}` in your Daily Note template where the game block should app
 
 Only content between `<!-- daily-five:start -->` and `<!-- daily-five:end -->` is replaced. If today's note is missing, Daily Five asks before creating it.
 
+## Data backup note
+
+Daily Five also writes a readable markdown backup note to `Daily Five Data.md` by default. The note contains current puzzle status, lifetime stats, history, and a hidden restore block with the plugin data as JSON.
+
+If Obsidian plugin storage is lost, Daily Five can restore from this markdown note on load. You can change the backup note path in settings or run **Daily Five: Write readable data backup note** from the command palette.
+
 ## Puzzle cache
 
 The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today's file is missing or unavailable, it requests `cache/latest.json`, then the [WordleHints.co.uk API](https://wordlehints.co.uk/). A daily GitHub Action updates `cache/index.json`, `cache/latest.json`, and the dated file.
@@ -28,7 +34,7 @@ If every remote source is missing, stale, or invalid, Daily Five generates a det
 
 ## Privacy
 
-Game progress, settings, and stats stay in your vault's local plugin data. Daily Five makes puzzle requests to GitHub raw content and, when needed, WordleHints.co.uk. It has no analytics and does not send vault content.
+Game progress, settings, and stats stay in your vault's local plugin data and markdown backup note. Daily Five makes puzzle requests to GitHub raw content and, when needed, WordleHints.co.uk. It has no analytics and does not send vault content.
 
 ## Release notes
 
