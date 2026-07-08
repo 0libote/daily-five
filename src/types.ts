@@ -54,6 +54,8 @@ export interface Settings {
   dailyNoteDateFormat: string;
   dailyNoteDisplay: DailyNoteDisplay;
   highContrast: boolean;
+  dataFileEnabled: boolean;
+  dataFilePath: string;
 }
 
 export interface PluginData {
