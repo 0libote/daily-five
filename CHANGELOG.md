@@ -2,6 +2,13 @@
 
 Release notes for Daily Five.
 
+## 0.2.5 - 2026-07-08
+
+### Fixed
+
+- Fixed Obsidian source scan warnings by replacing empty `catch` blocks in Daily Note sync and puzzle provider fallback handling.
+- Bumped repository release metadata so the source manifest points at the next clean release version after the already-scanned `0.2.4` release.
+
 ## 0.2.4 - 2026-07-08
 
 ### Added
