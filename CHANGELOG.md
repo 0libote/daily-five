@@ -2,6 +2,78 @@
 
 Release notes for Daily Five.
 
+## 0.2.4 - 2026-07-08
+
+### Added
+
+- Added a stronger Wordle-style animation pass with 3D tile flips, staged reveal timing, tile shine, typing pops, invalid-guess shake, correct-letter bounce, and keyboard feedback.
+
+### Changed
+
+- Reworked release automation so release files can be prepared from a tag, release branch, or manual dispatch without committing generated release files back to `main`.
+- Release automation now uploads or re-uploads `main.js`, `manifest.json`, and `styles.css` directly to the matching GitHub Release assets.
+
+## 0.2.3 - 2026-07-08
+
+### Added
+
+- Added a readable Markdown data backup note for the current puzzle, lifetime stats, game history, and restore data.
+- Added settings for enabling or disabling the Markdown backup and choosing the backup note path.
+- Added a command and settings button to manually rewrite the readable data backup.
+
+### Changed
+
+- Daily Five can restore from the Markdown backup note when plugin storage is missing.
+- Documented the Markdown data backup in the README.
+
+### Fixed
+
+- Hardened the backup parser so invalid or non-object restore payloads are ignored safely.
+- Fixed empty-history backup table formatting.
+- Added restore coverage for Markdown backup data.
+
+## 0.2.2 - 2026-07-08
+
+### Added
+
+- Added a richer Daily Note result block with clearer puzzle status, guessed rows, result details, and failed-game answer handling.
+- Added automatic resync behaviour for the managed Daily Five block when today's Daily Note is created or modified.
+
+### Changed
+
+- Refined game feedback and responsive styling for the board and on-screen keyboard.
+- Expanded tests for the improved Daily Note block.
+
+## 0.2.1 - 2026-07-08
+
+### Added
+
+- Added local fallback puzzle generation so a playable daily puzzle is still available when remote providers are missing, late, or invalid.
+- Added the 2026-07-08 puzzle cache entry and cache index updates.
+
+### Changed
+
+- Improved cache update automation and provider fallback order.
+- Persisted the resolved puzzle so the chosen daily answer stays stable after fallback.
+- Updated release workflow handling for tag and release-branch driven releases.
+
+### Fixed
+
+- Fixed provider lag causing the daily puzzle to become unavailable.
+- Fixed fallback puzzle handling so the same day does not unexpectedly change answer once resolved.
+
+## 0.2.0 - 2026-07-06
+
+### Added
+
+- Added the 2026-07-03 puzzle cache entry.
+- Added test coverage for cache and provider behaviour.
+
+### Changed
+
+- Improved cache update script handling for cached puzzle files, latest puzzle metadata, and cache index data.
+- Improved provider response normalisation before accepting a puzzle response.
+
 ## 0.1.9 - 2026-07-05
 
 ### Added
