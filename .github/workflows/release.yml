@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["*"]
+    branches: ["release/v*"]
 
 permissions:
   contents: write
@@ -13,6 +14,14 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve release version
+        id: release
+        run: |
+          RAW="$GITHUB_REF_NAME"
+          RAW="${RAW#release/}"
+          VERSION="${RAW#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -23,11 +32,10 @@ jobs:
       - run: npm ci
       - name: Set version from tag
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          VERSION="${VERSION#v}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
-          node -e 'const fs=require("fs"),p=require("./manifest.json"),v=require("./versions.json"); p.version=process.env.VERSION.replace(/^v/,""); v[p.version]=p.minAppVersion; fs.writeFileSync("manifest.json",JSON.stringify(p,null,2)+"\n"); fs.writeFileSync("versions.json",JSON.stringify(v,null,2)+"\n")'
+          node -e 'const fs=require("fs"),p=require("./manifest.json"),v=require("./versions.json"); p.version=process.env.VERSION; v[p.version]=p.minAppVersion; fs.writeFileSync("manifest.json",JSON.stringify(p,null,2)+"\n"); fs.writeFileSync("versions.json",JSON.stringify(v,null,2)+"\n")'
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add package.json package-lock.json manifest.json versions.json
@@ -46,9 +54,11 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" main.js manifest.json styles.css --clobber
+          TARGET="$(git rev-parse HEAD)"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" main.js manifest.json styles.css --clobber
           else
-            gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css --generate-notes
+            gh release create "$TAG" main.js manifest.json styles.css --target "$TARGET" --generate-notes
           fi
