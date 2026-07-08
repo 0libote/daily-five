@@ -1,3 +1,4 @@
+import { fallbackPuzzle } from "./fallback";
 import type { Puzzle } from "./types";
 
 type FetchJson = (url: string) => Promise<unknown>;
@@ -16,11 +17,11 @@ function normalise(value: unknown, today: string): Puzzle {
   return {
     date,
     game,
-    dayName: String(raw.dayName ?? raw.day_name ?? ""),
+    dayName: String(raw.dayName ?? raw.day_name ?? fallbackPuzzle(today).dayName),
     answer,
     wordLength: 5,
     difficulty,
-    source: "wordlehints.co.uk",
+    source: raw.source === "daily-five-fallback" ? "daily-five-fallback" : "wordlehints.co.uk",
     generatedAt: String(raw.generatedAt ?? new Date().toISOString())
   };
 }
@@ -45,5 +46,5 @@ export async function getPuzzle(
     } catch {}
   }
 
-  throw new Error("Today's game isn't ready yet. Check back a little later.");
+  return fallbackPuzzle(today);
 }
