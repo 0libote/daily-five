@@ -2,9 +2,9 @@
   "date": "2026-07-09",
   "game": 1846,
   "dayName": "Thursday",
-  "answer": "BEGIN",
+  "answer": "AMEND",
   "wordLength": 5,
-  "difficulty": 3,
-  "source": "daily-five-fallback",
-  "generatedAt": "2026-07-09T04:14:46.248Z"
+  "difficulty": 3.4,
+  "source": "manual",
+  "generatedAt": "2026-07-09T15:48:08Z"
 }
