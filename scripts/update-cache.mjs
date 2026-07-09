@@ -1,123 +1,122 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
-const endpoint = "https://wordlehints.co.uk/wp-json/wordlehint/v1/answers/latest";
+const wordleHintsEndpoint = "https://wordlehints.co.uk/wp-json/wordlehint/v1/answers/latest";
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 const GAME_ZERO_DATE = Date.UTC(2021, 5, 19);
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const fallbackAnswers = [
-  "ABOUT", "ABOVE", "ABUSE", "ACTOR", "ACUTE", "ADMIT", "ADOPT", "ADULT", "AFTER", "AGAIN", "AGENT", "AGREE",
-  "AHEAD", "ALARM", "ALBUM", "ALERT", "ALIKE", "ALIVE", "ALLOW", "ALONE", "ALONG", "ALTER", "AMONG", "ANGER",
-  "ANGLE", "ANGRY", "APART", "APPLE", "APPLY", "ARENA", "ARGUE", "ARISE", "ARRAY", "ASIDE", "ASSET", "AUDIO",
-  "AVOID", "AWARD", "AWARE", "BADLY", "BASIC", "BEACH", "BEGAN", "BEGIN", "BEING", "BELOW", "BENCH", "BIRTH",
-  "BLACK", "BLAME", "BLIND", "BLOCK", "BLOOD", "BOARD", "BOOST", "BRAIN", "BRAND", "BREAD", "BREAK", "BRIEF",
-  "BRING", "BROAD", "BROWN", "BUILD", "CABLE", "CARRY", "CATCH", "CAUSE", "CHAIN", "CHAIR", "CHART", "CHECK",
-  "CHEST", "CHIEF", "CHILD", "CLAIM", "CLASS", "CLEAN", "CLEAR", "CLICK", "CLIMB", "CLOCK", "CLOSE", "COACH",
-  "COAST", "COULD", "COUNT", "COURT", "COVER", "CRAFT", "CRASH", "CREAM", "CRIME", "CROSS", "CROWD", "CROWN",
-  "CYCLE", "DAILY", "DANCE", "DEATH", "DELAY", "DEPTH", "DOUBT", "DOZEN", "DRAFT", "DREAM", "DRESS", "DRINK",
-  "DRIVE", "EARLY", "EARTH", "EMPTY", "ENEMY", "ENJOY", "ENTER", "ENTRY", "EQUAL", "ERROR", "EVENT", "EVERY",
-  "EXACT", "EXIST", "EXTRA", "FAITH", "FALSE", "FAULT", "FIBRE", "FIELD", "FINAL", "FIRST", "FIXED", "FLASH",
-  "FLEET", "FLOOR", "FOCUS", "FORCE", "FORTH", "FRAME", "FRESH", "FRONT", "FRUIT", "FULLY", "GIANT", "GIVEN",
-  "GLASS", "GLOBE", "GOING", "GRACE", "GRADE", "GRAND", "GRANT", "GRASS", "GREAT", "GREEN", "GROUP", "GUARD",
-  "GUESS", "GUIDE", "HAPPY", "HEART", "HEAVY", "HORSE", "HOTEL", "HOUSE", "HUMAN", "IMAGE", "INDEX", "INNER",
-  "INPUT", "ISSUE", "JOINT", "JUDGE", "KNOWN", "LABEL", "LARGE", "LASER", "LATER", "LAYER", "LEARN", "LEAST",
-  "LEAVE", "LEVEL", "LIGHT", "LIMIT", "LOCAL", "LOGIC", "LUNCH", "MAGIC", "MAJOR", "MARCH", "MATCH", "MAYBE",
-  "METAL", "MIGHT", "MINOR", "MODEL", "MONEY", "MONTH", "MOTOR", "MOUNT", "MOUSE", "MOVIE", "MUSIC", "NEVER",
-  "NIGHT", "NOISE", "NORTH", "NOVEL", "NURSE", "OCCUR", "OCEAN", "OFFER", "OFTEN", "ORDER", "OTHER", "OWNER",
-  "PANEL", "PAPER", "PARTY", "PEACE", "PHONE", "PHOTO", "PIECE", "PILOT", "PITCH", "PLACE", "PLAIN", "PLANE",
-  "PLANT", "PLATE", "POINT", "POWER", "PRESS", "PRICE", "PRIDE", "PRIME", "PRINT", "PRIOR", "PRIZE", "PROOF",
-  "PROUD", "QUICK", "QUIET", "RADIO", "RAISE", "RANGE", "RAPID", "REACH", "READY", "REFER", "RIGHT", "RIVAL",
-  "RIVER", "ROUND", "ROUTE", "ROYAL", "SCALE", "SCENE", "SCOPE", "SCORE", "SENSE", "SERVE", "SEVEN", "SHADE",
-  "SHARE", "SHEET", "SHELF", "SHIFT", "SHINE", "SHIRT", "SHOCK", "SHORT", "SHOWN", "SKILL", "SLEEP", "SMALL",
-  "SMART", "SMILE", "SOLID", "SOLVE", "SOUND", "SOUTH", "SPACE", "SPARE", "SPEAK", "SPEED", "SPEND", "SPLIT",
-  "SPORT", "STAFF", "STAGE", "STAND", "START", "STATE", "STEAM", "STEEL", "STICK", "STILL", "STOCK", "STONE",
-  "STORE", "STORY", "STYLE", "SUGAR", "TABLE", "TAKEN", "TEACH", "THANK", "THEME", "THERE", "THICK", "THING",
-  "THINK", "THIRD", "THOSE", "THREE", "THROW", "TIGHT", "TIMER", "TODAY", "TOTAL", "TOUCH", "TOWER", "TRACK",
-  "TRADE", "TRAIN", "TREAT", "TREND", "TRIAL", "TRUST", "TRUTH", "UNDER", "UNION", "UNITY", "UNTIL", "UPPER",
-  "UPSET", "URBAN", "USAGE", "USUAL", "VALID", "VALUE", "VIDEO", "VISIT", "VITAL", "VOICE", "WASTE", "WATCH",
-  "WATER", "WHEEL", "WHERE", "WHICH", "WHILE", "WHITE", "WHOLE", "WOMAN", "WORLD", "WORTH", "WOULD", "WRITE",
-  "WRONG", "YOUNG"
-];
+const DEFAULT_DIFFICULTY = 3;
+const timeZone = process.env.DAILY_FIVE_TIME_ZONE ?? "Europe/London";
 
-const today = process.env.DAILY_FIVE_DATE ?? new Date().toISOString().slice(0, 10);
+function localDate(zone = timeZone, now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now).reduce((record, part) => {
+    if (part.type !== "literal") record[part.type] = part.value;
+    return record;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+const today = process.env.DAILY_FIVE_DATE ?? localDate();
 
 function utcDate(value) {
   const [year, month, day] = value.split("-").map(Number);
   return Date.UTC(year, month - 1, day);
 }
 
-function hashDate(value) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index++) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-}
-
-function fallbackPuzzle(date, generatedAt = new Date().toISOString()) {
-  const hash = hashDate(date);
+function dayName(date) {
   const parsedDate = new Date(`${date}T00:00:00Z`);
-  if (!isoDate.test(date) || Number.isNaN(parsedDate.getTime())) {
-    throw new Error(`Cannot generate fallback puzzle for invalid date: ${date}`);
-  }
-  return {
-    date,
-    game: Math.round((utcDate(date) - GAME_ZERO_DATE) / DAY_MS),
-    dayName: WEEKDAYS[parsedDate.getUTCDay()],
-    answer: fallbackAnswers[hash % fallbackAnswers.length],
-    wordLength: 5,
-    difficulty: Number((3 + ((hash >>> 8) % 31) / 10).toFixed(1)),
-    source: "daily-five-fallback",
-    generatedAt
-  };
+  if (!isoDate.test(date) || Number.isNaN(parsedDate.getTime())) throw new Error(`Invalid puzzle date: ${date}`);
+  return WEEKDAYS[parsedDate.getUTCDay()];
 }
 
-function normaliseUpstream(raw, expectedDate) {
-  const answer = String(raw.answer ?? "").toUpperCase();
-  const date = String(raw.date ?? "").slice(0, 10);
-  const game = Number(raw.game);
-  const difficulty = Number(raw.difficulty);
-  if (!isoDate.test(date) || !/^[A-Z]{5}$/.test(answer) || !Number.isFinite(game) || !Number.isFinite(difficulty)) {
-    throw new Error("Upstream response was invalid");
+function gameNumber(date, rawGame) {
+  const game = Number(rawGame);
+  if (Number.isFinite(game)) return game;
+  return Math.round((utcDate(date) - GAME_ZERO_DATE) / DAY_MS);
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    headers: {
+      "accept": "application/json",
+      "user-agent": "DailyFiveCache/1.0 (+https://github.com/0libote/daily-five)"
+    }
+  });
+  if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+  return response.json();
+}
+
+function normalise(raw, expectedDate, source) {
+  const answer = String(raw.answer ?? raw.word ?? raw.solution ?? "").toUpperCase();
+  const date = String(raw.date ?? raw.print_date ?? expectedDate).slice(0, 10);
+  const game = gameNumber(date, raw.game ?? raw.gameNumber ?? raw.number ?? raw.days_since_launch);
+  const difficulty = Number(raw.difficulty ?? raw.averageScore ?? raw.average_score ?? DEFAULT_DIFFICULTY);
+
+  if (!isoDate.test(date) || date !== expectedDate || !/^[A-Z]{5}$/.test(answer) || !Number.isFinite(game) || !Number.isFinite(difficulty)) {
+    throw new Error(`${source} response was invalid or stale`);
   }
-  if (date !== expectedDate) {
-    throw new Error(`Upstream latest is ${date}; expected ${expectedDate}`);
-  }
+
   return {
     date,
     game,
-    dayName: String(raw.day_name ?? raw.dayName ?? fallbackPuzzle(expectedDate).dayName),
+    dayName: String(raw.day_name ?? raw.dayName ?? dayName(date)),
     answer,
     wordLength: 5,
     difficulty,
-    source: "wordlehints.co.uk",
-    generatedAt: String(raw.generatedAt ?? new Date().toISOString())
+    source,
+    generatedAt: new Date().toISOString()
   };
 }
 
-async function puzzleForToday() {
-  try {
-    const response = await fetch(endpoint);
-    if (!response.ok) throw new Error(`Upstream returned ${response.status}`);
-    return normaliseUpstream(await response.json(), today);
-  } catch (error) {
-    console.log(`Using deterministic fallback for ${today}: ${error instanceof Error ? error.message : String(error)}`);
-    return fallbackPuzzle(today);
+const providers = [
+  {
+    source: "nytimes.com",
+    url: () => `https://www.nytimes.com/svc/wordle/v2/${today}.json`
+  },
+  {
+    source: "wordlehints.co.uk",
+    url: () => wordleHintsEndpoint
   }
+];
+
+async function puzzleForToday() {
+  const errors = [];
+  for (const provider of providers) {
+    try {
+      return normalise(await fetchJson(provider.url()), today, provider.source);
+    } catch (error) {
+      errors.push(`${provider.source}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(errors.join("; "));
 }
 
 async function preserveGeneratedAt(puzzle) {
   try {
     const existing = JSON.parse(await readFile(`cache/${puzzle.date}.json`, "utf8"));
     if (existing.game === puzzle.game && existing.answer === puzzle.answer && existing.source === puzzle.source) {
-      return { ...puzzle, generatedAt: existing.generatedAt };
+      return {
+        ...puzzle,
+        difficulty: Number.isFinite(Number(existing.difficulty)) ? Number(existing.difficulty) : puzzle.difficulty,
+        generatedAt: existing.generatedAt
+      };
     }
   } catch {}
   return puzzle;
 }
 
-const puzzle = await preserveGeneratedAt(await puzzleForToday());
+let puzzle;
+try {
+  puzzle = await preserveGeneratedAt(await puzzleForToday());
+} catch (error) {
+  console.log(`No authoritative puzzle available for ${today}; cache not updated. ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(0);
+}
 
 let existingLatestDate = "";
 try {
