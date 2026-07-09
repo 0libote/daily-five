@@ -1,7 +1,7 @@
 export type LetterState = "absent" | "present" | "correct";
 export type GameStatus = "playing" | "won" | "lost";
 export type DailyNoteDisplay = "squares" | "words" | "both";
-export type PuzzleSource = "wordlehints.co.uk" | "daily-five-fallback";
+export type PuzzleSource = "nytimes.com" | "wordlehints.co.uk" | "manual";
 
 export interface Puzzle {
   date: string;
