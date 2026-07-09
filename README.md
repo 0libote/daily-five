@@ -28,13 +28,15 @@ If Obsidian plugin storage is lost, Daily Five can restore from this markdown no
 
 ## Puzzle cache
 
-The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today's file is missing or unavailable, it requests `cache/latest.json`, then the [WordleHints.co.uk API](https://wordlehints.co.uk/). A daily GitHub Action updates `cache/index.json`, `cache/latest.json`, and the dated file.
+The plugin requests `cache/YYYY-MM-DD.json` from this repository first. If today's file is missing or unavailable, it requests `cache/latest.json`, then the configured upstream API.
 
-If every remote source is missing, stale, or invalid, Daily Five generates a deterministic local fallback puzzle for that date. The chosen puzzle is saved in local plugin data for the day so the answer does not change if a remote cache appears later.
+The cache updater only writes authoritative answers. It tries the NYT dated Wordle endpoint first, then WordleHints.co.uk. If neither source has today's valid puzzle, the workflow leaves the cache unchanged and tries again on the next scheduled run.
+
+There is no deterministic answer fallback. If every remote source is missing, stale, or invalid, Daily Five shows a "not ready yet" message instead of inventing a puzzle.
 
 ## Privacy
 
-Game progress, settings, and stats stay in your vault's local plugin data and markdown backup note. Daily Five makes puzzle requests to GitHub raw content and, when needed, WordleHints.co.uk. It has no analytics and does not send vault content.
+Game progress, settings, and stats stay in your vault's local plugin data and markdown backup note. Daily Five makes puzzle requests to GitHub raw content and, when needed, the configured upstream puzzle API. It has no analytics and does not send vault content.
 
 ## Release notes
 
@@ -55,4 +57,4 @@ The build writes `main.js` in the repository root. Copy it with `manifest.json` 
 
 ## Attribution
 
-Puzzle data is provided by [WordleHints.co.uk](https://wordlehints.co.uk/). Daily Five is independent software and is not affiliated with any newspaper or game publisher.
+Puzzle data is provided by the NYT Wordle endpoint and [WordleHints.co.uk](https://wordlehints.co.uk/). Daily Five is independent software and is not affiliated with any newspaper or game publisher.
