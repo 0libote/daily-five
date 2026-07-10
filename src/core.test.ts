@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { backupDataFromMarkdown, DATA_START, dataFileMarkdown } from "./data-file";
 import { daysBetween, localDate } from "./date";
 import { OPEN_PUZZLE_URI, replaceResultBlock, resultBlock } from "./daily-note";
-import { fallbackPuzzle } from "./fallback";
 import { keyboardStates, newGame, scoreGuess, submitGuess } from "./game";
 import { getPuzzle } from "./provider";
 import { emptyStats, recordResult } from "./stats";
@@ -153,13 +152,17 @@ it("ignores stale cached latest before falling back upstream", async () => {
   expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json", "https://api/answers/latest"]);
 });
 
-it("keeps fallback source when today's cache contains a fallback puzzle", async () => {
-  const cached = fallbackPuzzle(puzzle.date, "2026-07-05T00:10:00Z");
+it("rejects a legacy fallback cache and continues to an authoritative source", async () => {
+  const cached = { ...puzzle, answer: "ABOUT", source: "daily-five-fallback" };
+  const calls: string[] = [];
   const fetched = await getPuzzle(puzzle.date, "https://cache", "https://api", async (url) => {
+    calls.push(url);
     if (url.endsWith("/2026-07-05.json")) return cached;
-    throw new Error("unexpected source");
+    if (url.endsWith("/latest.json")) throw new Error("missing");
+    return puzzle;
   });
-  expect(fetched).toMatchObject({ date: puzzle.date, source: "daily-five-fallback", answer: cached.answer });
+  expect(fetched).toEqual(puzzle);
+  expect(calls).toEqual(["https://cache/2026-07-05.json", "https://cache/latest.json", "https://api/answers/latest"]);
 });
 
 it("does not call upstream when cache has today's puzzle", async () => {
@@ -171,16 +174,14 @@ it("does not call upstream when cache has today's puzzle", async () => {
   expect(calls).toEqual(["https://cache/2026-07-05.json"]);
 });
 
-it("uses a deterministic fallback when today's puzzle is not available remotely", async () => {
+it("reports that today's game is not ready when authoritative sources are unavailable", async () => {
   const calls: string[] = [];
-  const fetched = await getPuzzle("2026-07-08", "https://cache", "https://api", async (url) => {
+  const request = getPuzzle("2026-07-08", "https://cache", "https://api", async (url) => {
     calls.push(url);
     throw new Error("missing");
   });
+  await expect(request).rejects.toThrow("Today's game isn't ready yet. Check back a little later.");
   expect(calls).toEqual(["https://cache/2026-07-08.json", "https://cache/latest.json", "https://api/answers/latest"]);
-  expect(fetched).toMatchObject({ date: "2026-07-08", source: "daily-five-fallback", wordLength: 5 });
-  expect(fetched.answer).toMatch(/^[A-Z]{5}$/);
-  expect(fetched).toEqual(fallbackPuzzle("2026-07-08", fetched.generatedAt));
 });
 
 it("handles local and consecutive dates", () => {

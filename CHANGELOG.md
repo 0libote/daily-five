@@ -2,6 +2,13 @@
 
 Release notes for Daily Five.
 
+## 0.2.6 - 2026-07-10
+
+### Fixed
+
+- Fixed the build after removing the deterministic puzzle fallback by updating stale fallback tests.
+- Added coverage confirming legacy fallback cache entries are rejected and unavailable authoritative sources show the existing "not ready yet" state.
+
 ## 0.2.5 - 2026-07-08
 
 ### Fixed
