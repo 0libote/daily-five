@@ -12,11 +12,11 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-      - run: node scripts/update-cache.mjs
+          bun-version: 1.3.14
+      - run: bun scripts/update-cache.mjs
       - name: Commit cache changes
         run: |
           git add cache

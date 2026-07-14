@@ -34,60 +34,20 @@ jobs:
           VERSION="${RAW#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Prepare release files
+          bun-version: 1.3.14
+      - run: bun ci
+      - name: Prepare and verify release files
         env:
           VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
-          node - <<'NODE'
-          const fs = require("fs");
-          const version = process.env.VERSION;
-          const manifest = require("./manifest.json");
-          const versions = require("./versions.json");
-          manifest.version = version;
-          versions[version] = manifest.minAppVersion;
-          fs.writeFileSync("manifest.json", `${JSON.stringify(manifest, null, 2)}\n`);
-          fs.writeFileSync("versions.json", `${JSON.stringify(versions, null, 2)}\n`);
-          NODE
-      - name: Verify release version files
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          node - <<'NODE'
-          const fs = require("fs");
-          const version = process.env.VERSION;
-          const files = {
-            "package.json": JSON.parse(fs.readFileSync("package.json", "utf8")),
-            "package-lock.json": JSON.parse(fs.readFileSync("package-lock.json", "utf8")),
-            "manifest.json": JSON.parse(fs.readFileSync("manifest.json", "utf8")),
-            "versions.json": JSON.parse(fs.readFileSync("versions.json", "utf8"))
-          };
-          const checks = [
-            ["package.json version", files["package.json"].version === version],
-            ["package-lock.json version", files["package-lock.json"].version === version],
-            ["package-lock root package version", files["package-lock.json"].packages?.[""]?.version === version],
-            ["manifest.json version", files["manifest.json"].version === version],
-            ["versions.json entry", files["versions.json"][version] === files["manifest.json"].minAppVersion]
-          ];
-          const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
-          if (failed.length) {
-            console.error(`Release version file check failed for ${version}:`);
-            for (const name of failed) console.error(`- ${name}`);
-            process.exit(1);
-          }
-          console.log(`Release version files verified for ${version}.`);
-          NODE
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+        run: bun scripts/prepare-release.mjs
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
       - name: Attest release files
         uses: actions/attest@v4
         with:
