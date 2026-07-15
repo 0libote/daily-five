@@ -44,13 +44,13 @@ See [CHANGELOG.md](CHANGELOG.md) for version-by-version release notes.
 
 ## Build
 
-Requires Node.js 22 or later.
+Requires Bun 1.3.14 or newer.
 
 ```sh
-npm ci
-npm run typecheck
-npm test
-npm run build
+bun ci
+bun run typecheck
+bun run test
+bun run build
 ```
 
 The build writes `main.js` in the repository root. Copy it with `manifest.json` and `styles.css` to test a manual installation.
